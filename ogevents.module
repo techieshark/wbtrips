@@ -121,7 +121,6 @@ function ogevents_menu() {
         'description' => 'View and record results',
         'page callback' => 'ogevents_page_dashboard',
         'access arguments' => array('access ogevents content'),
-        'weight' => -55, // TODO - don't set this. let sitebuilder do it. (rm after dev finished)
         'file' => 'includes/ogevents.pages.inc',
         );
 
