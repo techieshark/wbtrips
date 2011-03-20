@@ -504,7 +504,6 @@ function ogevents_page_tally($event_nid, $gid) {
          . 'You can update the trip log weekly or just enter your totals at the end of the month in the last row.',
            array('%school-name' => $school_node->title));
 
-  //$output .= drupal_get_form('ogevents_edit_reg_form', $rid); //from old day-tally code.
 
   $header = array('Walk', 'Bike', 'Other');
   $rows = array();
