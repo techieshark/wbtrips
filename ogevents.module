@@ -447,20 +447,6 @@ function _ogevents_is_registered($sid, $event_nids) {
 }
 
 
-
-/**
- * Implementation of hook_theme.
- */
-function ogevents_theme($existing, $type, $theme, $path) {
-  return array(
-    'signin-page' => array(
-      'arguments' => array('options' => NULL),
-      'template'  => 'signin-form',
-    ),
-  );
-}
-
-
 function _ogevents_is_tallying_open($event_node) {
   return _ogevents_is_open_for($event_node, OGEVENTS_TALLYING);
 }
