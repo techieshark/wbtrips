@@ -2,4 +2,7 @@
 name = Organic Group Events
 description = Allows groups to register for events
 core = 6.x
+dependencies[] = cck
 dependencies[] = og
+dependencies[] = location
+package = "Walk And Bike"
