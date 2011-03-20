@@ -193,8 +193,8 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
  */
 function ogevents_tally_form_submit($form, &$form_state) {
 
-  _dm('tally_form_submit...');
-  _dpm($form_state);
+  _ogevents_debug('tally_form_submit...');
+  _ogevents_debug($form_state);
 
   $event_nid = $form_state['values']['event'];
   $gid = $form_state['values']['gid'];
@@ -276,8 +276,8 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
 
   $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
   $reg_node = node_load($reg_nid);
-  _dm("reg_nid in populate_participation_form: $reg_nid"); //DEBUG
-  _dm("reg_node in populate_participation_form: <pre>" . print_r($reg_node, TRUE) . "</pre>");
+  _ogevents_debug("reg_nid in populate_participation_form: $reg_nid"); //DEBUG
+  _ogevents_debug("reg_node in populate_participation_form: <pre>" . print_r($reg_node, TRUE) . "</pre>");
 
   $studentbody = $reg_node->field_studentbody[0]['value'];
   $participants = $reg_node->field_participants[0]['value'];
@@ -349,8 +349,8 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
  * Submit month participation totals.
  */
 function ogevents_participation_form_submit($form, &$form_state) {
-  _dm("form_state: "); //DEBUG
-  _dpm($form_state); //DEBUG
+  _ogevents_debug("form_state: "); //DEBUG
+  _ogevents_debug($form_state); //DEBUG
 
   $event_nid = $form_state['values']['event'];
   $school_nid = $form_state['values']['school'];
@@ -365,8 +365,8 @@ function ogevents_participation_form_submit($form, &$form_state) {
   node_save($reg_node);
 
   //DEBUG
-  _dm("reg node after saving: ");
-  _dpm($reg_node);
+  _ogevents_debug("reg node after saving: ");
+  _ogevents_debug($reg_node);
 
   $form_state['redirect'] = "event/$event_nid/thanks/$school_nid";
 }
