@@ -1,6 +1,16 @@
 <?php
 // $Id$
 
+/**
+ * @file
+ * The OGEvents module.
+ *
+ * This module provides an Active Transportation (walk/bike/other)
+ * Challenge event system.  It requires CCK types for school, event,
+ * and registrations.
+ * @ingroup ogevents
+ */
+
 // query returns NIDs of schools (groups) registered for the
 // given events (notice the IN (%s) in the query)
 define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
