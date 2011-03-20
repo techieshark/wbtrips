@@ -381,8 +381,7 @@ function ogevents_page_register($event_nid) {
     $output .= drupal_get_form('ogevents_register_form', $event_nid);
   }
 
-// from registration-form theme file...
-
+  // from registration-form theme file...
   $output .= '<h2 style="margin-top:20px;">Currently Registered Schools</h2>';
 
   // for BTA Admins, insert a 'Download Registered Schools List' link.
@@ -418,6 +417,98 @@ function _ogevents_get_reg_page_title($nid) {
     $title = t('Register your school'); //TODO - Margaux may want this to say 'Register another school', but probably only after we get the big 'Register' link graphic
   }
   return $title;
+}
+
+
+/**
+ * Build a form to register a school for an event.
+ * Form contains a single dropdown of unregistered schools.
+ */
+function ogevents_register_form($form_state, $event_nid) {
+  // get nids of schools registered for $event_nid
+  $regd_array = _ogevents_get_registered_schools($event_nid);
+
+  $query = "SELECT node.nid AS nid
+    FROM {node}
+    LEFT JOIN {og} ON node.nid = og.nid
+    WHERE node.type = 'school' AND node.status <> 0 AND og.og_directory <> 0
+    ORDER BY node.title ASC";
+  $result = db_query($query);
+  $allgroups = array(); // will be all schools published and listed in the directory
+  while ( $obj = db_fetch_object ($result) ) {
+    $allgroups[] = $obj->nid;
+  }
+
+  $nids = array_diff($allgroups, $regd_array); // array of unregistered schools
+  $titles = array();
+  foreach ($nids as $nid) {
+    $node = node_load($nid);
+    $titles[] = t($node->title . " - " . $node->locations[0]['city']) ;
+  }
+
+  // build array like (nid -> "<school name> - <city>")
+  $first_option = array(-1 => "Select a School...");
+  $normal_options = array_combine($nids, $titles);
+  $options = $first_option + $normal_options;
+
+  $form['og_register'] = array(
+      '#type' => 'select',
+      '#title' => t('Select a School'),
+      '#multiple' => FALSE,
+      '#options' => $options,
+      '#required' => TRUE,
+      );
+  $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Register',
+      );
+
+  $form['register_link'] = array(
+      '#value' => ' &nbsp; or &nbsp; ' . l('My school doesn\'t appear in the menu or the list below.', 'node/add/school', array('query' => "event=$event_nid")),
+      );
+
+  return $form;
+}
+
+/**
+ * Form validate: registering a school
+ * Ensures user didn't forget to select school.
+ */
+function ogevents_register_form_validate($form, &$form_state) {
+  $school_picked = $form_state['values']['og_register'];
+  if ($school_picked == -1) {
+    form_set_error('og_register', t('No school was selected.'));
+  }
+}
+
+
+/**
+ * Form submit function to register a school.
+ *
+ * A new 'registration' node is saved which records the event
+ * we're signing up for and connects (via og_ancestry table) to
+ * the school which had been selected.
+ */
+function ogevents_register_form_submit($form, &$form_state) {
+  $newNode = _get_blank_regnode();
+  $newNode->field_eventid[0]['nid'] = $eid = $form_state['values']['event']; //event nid to signup for
+
+  $gid = $form_state['values']['og_register']; // nid of selected school being registered
+
+  node_save($newNode);
+  $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
+  db_query($sql, $newNode->nid, $gid);
+
+  // clear form storage, to allow form to submit
+  $form_state['storage'] = array();
+
+  og_save_subscription($gid, $GLOBALS["user"]->uid, array('is_active' => 1));
+
+  drupal_set_message(_ogevents_get_post_registration_msg($eid));
+
+  $form_state['redirect'] = 'dashboard';
 }
 
 
