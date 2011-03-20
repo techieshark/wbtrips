@@ -197,6 +197,88 @@ function ogevents_menu() {
   return $items;
 }
 
+
+/**
+ * Implementation of hook_nodeapi.
+ * If school created, insert registration.
+ * If school deleted, delete registration and tallies.
+ */
+function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'insert':
+      if ($node->type == 'school') {
+        $newNode = _get_blank_regnode();
+
+        $event_nid = $_GET['event'];
+        $newNode->field_eventid[0]['nid'] = $event_nid;
+        $gid = $node->nid; //school nid
+
+        if ($event_nid) {
+          node_save($newNode);
+          $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
+          db_query($sql, $newNode->nid, $gid);
+          drupal_set_message(_ogevents_get_post_registration_msg($event_nid));
+        }
+        else {
+          drupal_set_message("There's been an error; your school has not been registered.");
+        }
+
+        $_REQUEST['destination'] = 'dashboard';
+      }
+    break;
+    case 'delete':
+      if ($node->type == 'school') {
+        $registrations = _ogevents_get_school_registrations($node->nid);
+        // for all events the school registered for,
+        //   delete all tallies associated with the school
+        //   delete the registration for the event
+        foreach ($registrations as $reg_nid) {
+          $r_node = node_load($reg_nid);
+          _ogevents_delete_tallies($node->nid, $r_node->field_eventid[0]['nid']);
+          node_delete($reg_nid);
+          drupal_set_message("Deleted registration: $reg_nid");
+        }
+      }
+    break;
+  }
+}
+
+
+/**
+ * Get IDs of all registrations for the given school.
+ * @return array of registration ids.
+ */
+function _ogevents_get_school_registrations($school_nid) {
+  $registrations = array();
+  $query = 'SELECT n.nid FROM {node} n '
+         . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
+         . 'WHERE n.type = "registration" AND oga.group_nid = %d';
+  $res = db_query($query, $school_nid);
+  while ($reg_nid = db_result($res)) {
+    $registrations[] = $reg_nid;
+  }
+  return $registrations;
+}
+
+
+/**
+ * Delete all tally nodes (content_type_triptally) for
+ * the given school and event.
+ */
+function _ogevents_delete_tallies($school_nid, $event_nid) {
+  // get node ids for tallies.
+  $query = 'SELECT t.nid FROM {content_type_triptally} t '
+         . 'JOIN {content_field_eventid} e ON t.nid = e.nid '
+         . 'JOIN {og_ancestry} oga ON t.nid = oga.nid '
+         . 'WHERE oga.group_nid = %d AND e.field_eventid_nid = %d';
+  $res = db_query($query, $school_nid, $event_nid);
+  while ($tally_nid = db_result($res)) {
+    node_delete($tally_nid);
+    drupal_set_message("Deleted tally: $tally_nid");
+  }
+}
+
+
 /*
  * Return nids of events open for either registration or tallying.
  * TODO !! sort by tally start date, sooner -> later (in another funct.)
@@ -788,85 +870,7 @@ function _ogevents_get_post_registration_msg($event_nid) {
            array('@register-page' => url("event/$event_nid/register")));
 }
 
-/**
- * Implementation of hook_nodeapi.
- * If school created, insert registration.
- * If school deleted, delete registration and tallies.
- */
-function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  switch ($op) {
-    case 'insert':
-      if ($node->type == 'school') {
-        $newNode = _get_blank_regnode();
 
-        $event_nid = $_GET['event'];
-        $newNode->field_eventid[0]['nid'] = $event_nid;
-        $gid = $node->nid; //school nid
-
-        if ($event_nid) {
-          node_save($newNode);
-          $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
-          db_query($sql, $newNode->nid, $gid);
-          drupal_set_message(_ogevents_get_post_registration_msg($event_nid));
-        }
-        else {
-          drupal_set_message("There's been an error; your school has not been registered.");
-        }
-
-        $_REQUEST['destination'] = 'dashboard';
-      }
-    break;
-    case 'delete':
-      if ($node->type == 'school') {
-        $registrations = _ogevents_get_school_registrations($node->nid);
-        // for all events the school registered for,
-        //   delete all tallies associated with the school
-        //   delete the registration for the event
-        foreach ($registrations as $reg_nid) {
-          $r_node = node_load($reg_nid);
-          _ogevents_delete_tallies($node->nid, $r_node->field_eventid[0]['nid']);
-          node_delete($reg_nid);
-          drupal_set_message("Deleted registration: $reg_nid");
-        }
-      }
-    break;
-  }
-}
-
-
-/**
- * Get IDs of all registrations for the given school.
- * @return array of registration ids.
- */
-function _ogevents_get_school_registrations($school_nid) {
-  $registrations = array();
-  $query = 'SELECT n.nid FROM {node} n '
-         . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
-         . 'WHERE n.type = "registration" AND oga.group_nid = %d';
-  $res = db_query($query, $school_nid);
-  while ($reg_nid = db_result($res)) {
-    $registrations[] = $reg_nid;
-  }
-  return $registrations;
-}
-
-
-/**
- * Delete all tally nodes (content_type_triptally) for
- * the given school and event.
- */
-function _ogevents_delete_tallies($school_nid, $event_nid) {
-  // get node ids for tallies.
-  $query = 'SELECT t.nid FROM {content_type_triptally} t '
-         . 'JOIN {content_field_eventid} e ON t.nid = e.nid '
-         . 'JOIN {og_ancestry} oga ON t.nid = oga.nid '
-         . 'WHERE oga.group_nid = %d AND e.field_eventid_nid = %d';
-  $res = db_query($query, $school_nid, $event_nid);
-  while ($tally_nid = db_result($res)) {
-    node_delete($tally_nid);
-    drupal_set_message("Deleted tally: $tally_nid");
-  }
-}
 
 
 
