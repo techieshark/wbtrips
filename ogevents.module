@@ -859,16 +859,11 @@ function _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $othe
 
   if ($tally_nid) { // use existing node if exists
     $tally_node = node_load($tally_nid);
-    _dm("Updating node ($tally_nid) for bike/walk/other values ($bike/$walk/$other) " .
-                       "for event/school/week ($event_nid,$gid,$week)."); //DEBUG
   }
   else { // create new node
     if ($bike == 0 && $walk == 0 && $other == 0) { // don't save useless nodes.
       return;
     }
-
-    _dm("Creating new node for bike/walk/other values ($bike/$walk/$other) " .
-                       "for event/school/week ($event_nid,$gid,$week)."); //DEBUG
 
     $is_new_node = TRUE;
 
@@ -1145,10 +1140,6 @@ function ogevents_participation_form_submit($form, &$form_state) {
   $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
   $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
   $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
-
-  //DEBUG
-  _dm("reg node after recording: ");
-  _dpm($reg_node);
 
   node_save($reg_node);
 
