@@ -4,6 +4,7 @@
  * User page callbacks for the ogevents module.
  */
 
+
 /**
  * Page callback to create dashboard page (My Schools).
  * Displays user's schools and other useful info/links.
@@ -404,6 +405,19 @@ function ogevents_page_register($event_nid) {
   $output .= theme('table', $header, $rows);
 
   return $output;
+}
+
+
+/** Provides title for the registration page. */
+function _ogevents_get_reg_page_title($nid) {
+  if (count(_get_current_reg_events()) > 1) {
+    $node = node_load($nid);
+    $title = t("Register your school for $node->title");
+  }
+  else {
+    $title = t('Register your school'); //TODO - Margaux may want this to say 'Register another school', but probably only after we get the big 'Register' link graphic
+  }
+  return $title;
 }
 
 

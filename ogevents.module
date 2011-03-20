@@ -296,7 +296,6 @@ function _ogevents_util_smallbig($a, $b) {
 }
 
 
-
 /**
  * Returns array of nids of schools registered for the given event,
  * where the user is a member of those school OGs.
@@ -399,13 +398,6 @@ function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
 }
 
 
-
-
-
-
-
-
-
 /**
  * Returns number in float format with no trailing zeros.
  */
@@ -413,7 +405,6 @@ function _ogevents_percentify($num) {
   if ($num == 0) return 0; //handle special case so we don't return an empty string.
   return trim(sprintf("%.1f", $num), ".0");
 }
-
 
 
 /**
@@ -457,7 +448,6 @@ function _ogevents_get_latest_tally_timestamp($school_nid, $event_nid) {
 
   return $timestamp;
 }
-
 
 
 /**
@@ -566,8 +556,8 @@ function _ogevents_is_open_for($event, $window) {
     else {
       return false;
     }
-
 }
+
 
 /**
  * Return date of tally start
@@ -609,7 +599,6 @@ function _get_current_events($field) {
   }
   return $current_event_nids;
 }
-
 
 
 /**
@@ -679,6 +668,7 @@ function ogevents_register_form($form_state, $event_nid) {
   return $form;
 }
 
+
 /**
  * Return the title for the node with the given nid
  */
@@ -710,6 +700,7 @@ function _get_blank_regnode() {
   return $newNode;
 }
 
+
 /**
  * Form validate: registering a school
  * Ensures user didn't forget to select school.
@@ -720,6 +711,7 @@ function ogevents_register_form_validate($form, &$form_state) {
     form_set_error('og_register', t('No school was selected.'));
   }
 }
+
 
 /**
  * Form submit function to register a school.
@@ -784,6 +776,7 @@ function select_province($element) {
   return $element;
 }
 
+
 /** Simplify form and change what happens on submit.
  */
 function ogevents_form_school_node_form_alter(&$form, &$form_state) {
@@ -840,6 +833,7 @@ function ogevents_school_form_submit($form, &$form_state) {
   $form['locations'][0]['name'] = $form_state['values']['title']; // school location = <school name>
   //TODO: I think location name and og_description could be left blank. (Are they used elsewhere?)
 }
+
 
 /**
  * Returns text to send to drupal_set_message after registering a school.
@@ -1060,6 +1054,7 @@ function ogevents_tally_form_submit($form, &$form_state) {
   }
 }
 
+
 function ogevents_participation_form($form_state, $event_nid, $school_nid) {
   $form = array();
 
@@ -1084,8 +1079,6 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
       //'#collapsed' => $collapsed,
       '#attributes' => array('class' => 'ogevents-participation'),
       );
-
-
 
   $form['participation']['participants'] = array(
       '#type' => 'textfield',
