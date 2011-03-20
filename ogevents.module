@@ -414,14 +414,6 @@ function _ogevents_get_registered_schools($event_nids = NULL) {
 }
 
 
-/**
- * Returns true if $sid is a school registered for the specified event.
- */
-function _ogevents_is_registered($sid, $event_nids) {
-  return array_key_exists($sid, _ogevents_get_registered_schools($event_nid));
-}
-
-
 function _ogevents_is_tallying_open($event_node) {
   return _ogevents_is_open_for($event_node, OGEVENTS_TALLYING);
 }
