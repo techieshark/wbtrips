@@ -422,17 +422,6 @@ function _ogevents_get_results($school_nid, $event_nid) {
 
 
 /**
- * Returns the default current event, which the site admin specifies.
- * TODO: create admin page to allow admin to set this so we don't hard-code it.
- * XXX - this doesn't make sense.  are we talking current in the sense of 'before reg' or 'before tally' or...?
- */
-function _ogevents_get_current_event() {
-  return 1019; //TODO - this is just a placeholder (this is the test event).
-}
-
-
-
-/**
  * Returns array of NIDs of schools which are registered for the given event(s).
  * If the event is not specified, we return schools registered for any event open for registration.
  * @param events Either a single event NID, an array of event NIDs, or NULL.
@@ -653,9 +642,6 @@ function _get_node_title($nid) {
   return $node->title;
 }
 
-function _get_node_field($nid, $field) {
-  return node_load($nid)->$field;
-}
 
 /** Return a template registration node object.
  *  Everything but field_eventid[0]['nid'] is filled in
@@ -1320,22 +1306,4 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
 }
 
 
-function ogevents_edit_reg_form($form_state, $reg_nid) {
-
-  $form = array();
-  _ogevents_populate_participation_form($form, $reg_nid);
-
-  $form['submit'] = array(
-      '#type' => 'submit',
-      '#value' => 'Submit',
-      );
-
-  return $form;
-}
-
-function ogevents_edit_reg_form_submit($form, &$form_state) {
-  _ogevents_save_participation_form($form_state);
-  $form_state['redirect'] = 'og/my';
-  drupal_set_message("Your trips have been added");
-}
 
