@@ -279,60 +279,6 @@ function _ogevents_delete_tallies($school_nid, $event_nid) {
 }
 
 
-/*
- * Return nids of events open for either registration or tallying.
- * TODO !! sort by tally start date, sooner -> later (in another funct.)
- */
-function _ogevents_get_open_events() {
-  return array_unique(array_merge(_get_current_reg_events(), _get_current_tally_events()));
-}
-
-
-/**
- * Returns $a and $b in an array with smaller followed by larger.
- */
-function _ogevents_util_smallbig($a, $b) {
-  return $a < $b ? array($a,$b) : array($b,$a);
-}
-
-
-/**
- * Returns array of nids of schools registered for the given event,
- * where the user is a member of those school OGs.
- */
-function _ogevents_get_my_registered_schools($event_nid) {
-  global $user;
-
-  $all_registered_schools = _ogevents_get_registered_schools($event_nid);
-  if (empty($user->og_groups) || empty($all_registered_schools)) {
-    return array();
-  } else {
-    $registered_groups = array_intersect(array_keys($user->og_groups), $all_registered_schools);
-
-    // Since og_groups may contain schools we registered for a previous event,
-    // make sure the current event's registration is owned by us (otherwise it is
-    // someone else's event).
-
-    $my_registered_schools = array();
-    foreach ($registered_groups as $group_id) {
-      $reg_nid = _ogevents_get_registration($event_nid, $group_id);
-      $registration = node_load($reg_nid);
-      if ($registration->uid == $user->uid) {
-        $my_registered_schools[] = $group_id;
-      }
-    }
-
-    return $my_registered_schools;
-  }
-
-  // filter my og schools by event:
-  // look for registrations owned by a given user uid.
-  //filter_registered_by_user_for_event($my_schools, $event_nid, $user->uid);
-  // This SQL does what this function does.  Consider using it instead.
-  //SELECT oga.group_nid FROM og_ancestry oga JOIN content_type_registration r ON oga.nid = r.nid JOIN node n ON r.vid = n.vid JOIN content_field_eventid e ON e.vid = r.vid WHERE n.uid = %user AND e.field_eventid_nid = %event
-}
-
-
 function _ogevents_get_school_coordinator_uid($school_nid, $event_nid) {
   $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
   $reg_node = node_load($reg_nid);
@@ -404,49 +350,6 @@ function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
 function _ogevents_percentify($num) {
   if ($num == 0) return 0; //handle special case so we don't return an empty string.
   return trim(sprintf("%.1f", $num), ".0");
-}
-
-
-/**
- * Get a unix timestamp for the most recently updated tally or registration
- * for a given school and event.
- * Returns false if no tally data (trips, participation) has been recorded.
- */
-function _ogevents_get_latest_tally_timestamp($school_nid, $event_nid) {
-  $timestamp = 0;
-
-  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
-  if (!$reg_nid) {
-    return FALSE; // no registration, so no tallies either
-  }
-
-  $reg_node = node_load($reg_nid);
-  if ($reg_node->nid) {
-    $staff = $reg_node->field_staff[0]['value'];
-    $parents = $reg_node->field_parents[0]['value'];
-    $participants = $reg_node->field_participants[0]['value'];
-    $studentbody = $reg_node->field_studentbody[0]['value'];
-  }
-
-  // consider participation info as tallying activity, use for timestamp
-  if ($staff + $parents + $participants + $studentbody > 0) {
-    $timestamp = $reg_node->changed;
-  }
-
-  // pick out the latest timestamp from the tallies:
-  $query = "SELECT n.changed FROM {node} n
-  JOIN {content_type_triptally} t ON n.vid = t.vid
-  JOIN {og_ancestry} oga ON t.nid = oga.nid
-  JOIN {content_field_eventid} e ON t.vid = e.vid
-  WHERE oga.group_nid = %d AND e.field_eventid_nid = %d
-  ORDER BY n.changed DESC LIMIT 1";
-  $tally_time = db_result(db_query($query, $school_nid, $event_nid));
-
-  if ($tally_time > $timestamp) {
-    $timestamp = $tally_time;
-  }
-
-  return $timestamp;
 }
 
 
