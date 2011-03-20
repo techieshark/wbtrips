@@ -156,7 +156,7 @@ function ogevents_menu() {
         );
 
     $items["event/$event_nid/register"] = array(
-        'title callback' => '_get_reg_page_title',
+        'title callback' => '_ogevents_get_reg_page_title',
         'title arguments' => array(1),
         'page callback' => 'ogevents_page_register',
         'page arguments' => array(1),
@@ -627,25 +627,6 @@ function _get_current_tally_events() {
 }
 
 
-function _get_reg_page_title($nid) {
-  if (count(_get_current_reg_events()) > 1) {
-    $node = node_load($nid);
-    $title = t("Register your school for $node->title");
-  }
-  else {
-    $title = t('Register your school'); //TODO - Margaux may want this to say 'Register another school', but probably only after we get the big 'Register' link graphic
-  }
-  return $title;
-}
-
-function _get_tally_page_title($nid) {
-  $node = node_load($nid);
-  $title = t('Tally trips for @school-name', array('@school-name' => $node->title));
-  return $title;
-}
-
-
-
 /**
  * Build a form to register a school for an event.
  * Form contains a single dropdown of unregistered schools.
@@ -851,7 +832,6 @@ function ogevents_form_school_prevent_duplicates_validate($form, &$form_state) {
 }
 
 
-
 function ogevents_school_form_submit($form, &$form_state) {
   // Setup form values so we're ready to add an organic group too.
   $form_state['values']['og_description'] = $form_state['values']['title']; // og desc = <school name>
@@ -869,10 +849,6 @@ function _ogevents_get_post_registration_msg($event_nid) {
            'You may log trips via My Schools below, or <a href="@register-page">Register another school</a>.',
            array('@register-page' => url("event/$event_nid/register")));
 }
-
-
-
-
 
 
 /**
@@ -941,59 +917,6 @@ function _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $othe
   return;
 }
 
-/**
- * Submit month participation totals.
- */
-function ogevents_participation_form_submit($form, &$form_state) {
-  _dm("form_state: "); //DEBUG
-  _dpm($form_state); //DEBUG
-
-  $event_nid = $form_state['values']['event'];
-  $school_nid = $form_state['values']['school'];
-  $reg_nid = $form_state['values']['regnode']; // the registration for the previously given school+event
-  $reg_node = node_load($reg_nid);
-
-  $reg_node->field_participants[0]['value'] = $form_state['values']['participants'];
-  $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
-  $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
-  $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
-
-  //DEBUG
-  _dm("reg node after recording: ");
-  _dpm($reg_node);
-
-  node_save($reg_node);
-
-  //DEBUG
-  _dm("reg node after saving: ");
-  _dpm($reg_node);
-
-  $form_state['redirect'] = "event/$event_nid/thanks/$school_nid";
-}
-
-
-
-/**
- * Submit tally for the month.
- */
-function ogevents_tally_form_submit($form, &$form_state) {
-
-  _dm('tally_form_submit...');
-  _dpm($form_state);
-
-  $event_nid = $form_state['values']['event'];
-  $gid = $form_state['values']['gid'];
-
-  // for each week, look for info and pass to tally-submit function
-  foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
-    _ogevents_update_triptally($event_nid, $gid, $week,
-      $form_state['values']["biketrips$week"],
-      $form_state['values']["walktrips$week"],
-      $form_state['values']["othertrips$week"]);
-  }
-}
-
-
 
 /**
  * Find the node id of the triptally for the given school, event, week.
@@ -1026,10 +949,6 @@ function _ogevents_get_registration($event_nid, $gid) {
   // assert: there can only be one registration per school+event
   return db_result(db_query($query, $event_nid, $gid));
 }
-
-
-
-
 
 
 /**
@@ -1121,8 +1040,25 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
 }
 
 
+/**
+ * Submit tally for the month.
+ */
+function ogevents_tally_form_submit($form, &$form_state) {
 
+  _dm('tally_form_submit...');
+  _dpm($form_state);
 
+  $event_nid = $form_state['values']['event'];
+  $gid = $form_state['values']['gid'];
+
+  // for each week, look for info and pass to tally-submit function
+  foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+    _ogevents_update_triptally($event_nid, $gid, $week,
+      $form_state['values']["biketrips$week"],
+      $form_state['values']["walktrips$week"],
+      $form_state['values']["othertrips$week"]);
+  }
+}
 
 function ogevents_participation_form($form_state, $event_nid, $school_nid) {
   $form = array();
@@ -1200,4 +1136,32 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
 }
 
 
+/**
+ * Submit month participation totals.
+ */
+function ogevents_participation_form_submit($form, &$form_state) {
+  _dm("form_state: "); //DEBUG
+  _dpm($form_state); //DEBUG
 
+  $event_nid = $form_state['values']['event'];
+  $school_nid = $form_state['values']['school'];
+  $reg_nid = $form_state['values']['regnode']; // the registration for the previously given school+event
+  $reg_node = node_load($reg_nid);
+
+  $reg_node->field_participants[0]['value'] = $form_state['values']['participants'];
+  $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
+  $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
+  $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
+
+  //DEBUG
+  _dm("reg node after recording: ");
+  _dpm($reg_node);
+
+  node_save($reg_node);
+
+  //DEBUG
+  _dm("reg node after saving: ");
+  _dpm($reg_node);
+
+  $form_state['redirect'] = "event/$event_nid/thanks/$school_nid";
+}
