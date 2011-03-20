@@ -92,24 +92,31 @@ function ogevents_init() {
 /**
  * Implementation of hook_menu
  *
- * This will register the following paths:
- * - event/%event_nid/register (for all event_nids which are current).
+ * This will register the following pages:
+ *
+ * - /dashboard : The 'My Schools' page w/ links to edit tallies.
+ * - /duplicates : Administrative tool to find duplicate schools.
+ *
+ * - /event/$event_nid/register
  *   The page to register a school for the event given in the url.
  *
- * - event/%event_nid/tally/%school_nid  [callback only]
- *   The page where you record trips for the given event and school. (Newest)
+ * - /event/$event_nid/results
+ *   The final results page w/ a table of all schools and their stats.
  *
- * - event/%event_nid/results
- *   The final results page w/ a table of all schools and their stats. (Newest)
+ * - CSV Report download pages to get registrations and results:
+ *   /event/$event_nid/register/csv
+ *   /event/$event_nid/results/csv
  *
- * - dashboard
- *   The user's personal dashboard w/ links and info for there schools.
+ * - /event/$event_nid/tally/$school_nid
+ *   The page where you record trips for the given event and school.
+ *
+ * - /event/$event_nid/thanks/$school_nid
+ *   A thanks/confirmation page when final results are submitted.
  *
  * Note: This hook is rarely called (for instance, when the module is
  *       first loaded).  Should we call it manually when we need to
  *       register new items (e.g. when we add events)? TODO.
- *       Otherwise they'll only show when we clear the menu cache.
- *
+ *       Otherwise they'll only show when we clear the menu cache (BUG).
  */
 function ogevents_menu() {
   $items = array();
@@ -129,12 +136,30 @@ function ogevents_menu() {
         'description' => 'Show duplicate schools',
         'page callback' => 'ogevents_page_duplicates',
         'access arguments' => array('access ogevents reports'),
+        'type' => MENU_CALLBACK, //TODO - we might want this to be an actual menu item for admins
+        'file' => 'includes/ogevents.pages.inc',
+        );
+
+  foreach ($event_nids as &$event_nid) {
+    $items["event/$event_nid/register"] = array(
+        'title callback' => '_ogevents_get_reg_page_title',
+        'title arguments' => array(1),
+        'page callback' => 'ogevents_page_register',
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+        'file' => 'includes/ogevents.pages.inc',
+        );
+
+    $items["event/$event_nid/register/csv"] = array(
+        'title' => 'Registered Schools CSV Export',
+        'description' => 'CSV export of all registered schools',
+        'page callback' => 'ogevents_page_registered_csv',
+        'page arguments' => array(1),
+        'access arguments' => array('access ogevents reports'),
         'type' => MENU_CALLBACK,
         'file' => 'includes/ogevents.pages.inc',
         );
 
-
-  foreach ($event_nids as &$event_nid) {
     $items["event/$event_nid/results"] = array(
         'title callback' => '_ogevents_get_results_page_title',
         'title arguments' => array(1),
@@ -154,29 +179,10 @@ function ogevents_menu() {
         'type' => MENU_CALLBACK,
         'file' => 'includes/ogevents.pages.inc',
         );
-
-    $items["event/$event_nid/register"] = array(
-        'title callback' => '_ogevents_get_reg_page_title',
-        'title arguments' => array(1),
-        'page callback' => 'ogevents_page_register',
-        'page arguments' => array(1),
-        'access callback' => TRUE,
-        'file' => 'includes/ogevents.pages.inc',
-        );
-
-    $items["event/$event_nid/register/csv"] = array(
-        'title' => 'Registered Schools CSV Export',
-        'description' => 'CSV export of all registered schools',
-        'page callback' => 'ogevents_page_registered_csv',
-        'page arguments' => array(1),
-        'access arguments' => array('access ogevents reports'),
-        'type' => MENU_CALLBACK,
-        'file' => 'includes/ogevents.pages.inc',
-        );
   }
 
   foreach ($tlyids as &$tly) {
-    $items["event/$tly/tally/%"] = array( // Month tally page for given event and school
+    $items["event/$tly/tally/%"] = array(
         'title' => t('Tally Trips'),
         'page callback' => 'ogevents_page_tally',
         'page arguments' => array(1,3),
@@ -184,7 +190,8 @@ function ogevents_menu() {
         'type' => MENU_CALLBACK,
         'file' => 'includes/ogevents.tally.inc',
         );
-    $items["event/$tly/thanks/%"] = array( // tally submission confirmation page
+
+    $items["event/$tly/thanks/%"] = array(
         'title' => t('Thanks!'),
         'page callback' => 'ogevents_page_tally_thanks',
         'page arguments' => array(1,3),
