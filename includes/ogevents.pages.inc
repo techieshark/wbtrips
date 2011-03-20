@@ -66,7 +66,7 @@ function ogevents_page_dashboard() {
       $rows = array();
 
       foreach ($schools as $school_nid) {
-        $school_name = _get_node_title($school_nid);
+        $school_name = _ogevents_get_node_title($school_nid);
         $row = array();
 
         if ($tallying_open) {
@@ -233,7 +233,7 @@ function _ogevents_util_smallbig($a, $b) {
 function ogevents_page_results($event_nid) {
   $output = '<p>' . 'You may ' . l('download these results', "event/$event_nid/results/csv") . '.' . '</p>';
 
-  _dm("Event: $event_nid"); //DEBUG
+  _ogevents_debug("Event: $event_nid"); //DEBUG
 
   $header = _ogevents_get_challenge_results_header(FALSE);
   $rows = _ogevents_get_challenge_results_data($event_nid, TRUE, FALSE);
@@ -486,7 +486,7 @@ function ogevents_page_register($event_nid) {
                     _ogevents_get_school_coordinator($school_nid, $event_nid, TRUE));
   }
 
-  _dpm($rows); //DEBUG
+  _ogevents_debug($rows); //DEBUG
 
   $output .= theme('table', $header, $rows);
 

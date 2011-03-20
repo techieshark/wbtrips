@@ -22,12 +22,14 @@ define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
   WHERE field_eventid.field_eventid_nid IN (%s)
   ORDER BY sn.title ASC');
 
-define('OGEVENTS_NUM_WEEKS', 5); // # weeks in an event.
+/** The number of weeks in a challenge event. */
+define('OGEVENTS_NUM_WEEKS', 5);
 
 define('OGEVENTS_TALLYING', 1);
 define('OGEVENTS_REGISTRATION', 2);
 
-define('OGEVENTS_DEBUG', FALSE);
+/** Enable or disable debug messages. */
+define('OGEVENTS_DEBUG', TRUE);
 
 // TODO - rewrite all href code to use drupal l($text,$path) function
 // TODO - use t() on all output
@@ -55,17 +57,14 @@ define('OGEVENTS_DEBUG', FALSE);
 //       revisions section.
 
 /**
- * Debug Msg: print if OGEVENTS_DEBUG is set
+ * Print a debug msg/obj if OGEVENTS_DEBUG is set.
+ *
+ * Note that the devel module (which provides dpm() should be enabled).
+ * @param foo A string or object to be printed.
  */
-function _dm($string) {
-  if (OGEVENTS_DEBUG) {
-    drupal_set_message($string);
-  }
-}
-
-function _dpm($thing) {
-  if (OGEVENTS_DEBUG) {
-    dpm($thing);
+function _ogevents_debug($foo) {
+  if (OGEVENTS_DEBUG && function_exists('dpm')) {
+    is_string($foo) ? drupal_set_message($foo) : dpm($foo);
   }
 }
 
