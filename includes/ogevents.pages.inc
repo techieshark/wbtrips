@@ -15,17 +15,6 @@ function ogevents_page_dashboard() {
   global $user;
   $output = "";
 
-  // Welcome, Joe User.
-
-  /*
-  $name = $user->name;
-  profile_load_profile($user);
-  if (!empty($user->profile_fullname)) {
-    $name = $user->profile_fullname;
-  }
-  $output .= '<p>' . "Welcome, $name.";
-  */
-
   $events = _ogevents_get_open_events();
 
   if (count($events) == 0) {
