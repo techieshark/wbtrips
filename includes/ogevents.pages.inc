@@ -220,7 +220,7 @@ function ogevents_page_duplicates() {
 
 
 /**
- * Returns $a and $b in an array with smaller followed by larger.
+ *  Returns an array with $a and $b sorted small then large.
  */
 function _ogevents_util_smallbig($a, $b) {
   return $a < $b ? array($a,$b) : array($b,$a);
