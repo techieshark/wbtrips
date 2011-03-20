@@ -255,10 +255,7 @@ function _ogevents_get_my_registered_schools($event_nid) {
 function _ogevents_get_school_coordinator_uid($school_nid, $event_nid) {
   $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
   $reg_node = node_load($reg_nid);
-  if (! $reg_node->nid) {
-    return; // invalid node, no result.
-  }
-  return $reg_node->uid;
+  return ($reg_node->nid ? $reg_node->uid : NULL);
 }
 
 
