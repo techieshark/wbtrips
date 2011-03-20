@@ -242,15 +242,6 @@ function ogevents_page_results($event_nid) {
   return $output;
 }
 
-function _ogevents_get_results_page_title($event_nid) {
-  if (count(_ogevents_get_current_reg_events()) > 1) {
-    return t('Results for @event', array('@event' => _ogevents_get_node_title($event_nid)));
-  }
-  else { // Keep things simple if only one event running
-    return t('See Challenge results');
-  }
-}
-
 function ogevents_page_results_csv($event_nid) {
   // set headers
   header('Content-Type: text/csv');
@@ -491,19 +482,6 @@ function ogevents_page_register($event_nid) {
   $output .= theme('table', $header, $rows);
 
   return $output;
-}
-
-
-/** Provides title for the registration page. */
-function _ogevents_get_reg_page_title($nid) {
-  if (count(_ogevents_get_current_reg_events()) > 1) {
-    $node = node_load($nid);
-    $title = t("Register your school for $node->title");
-  }
-  else {
-    $title = t('Register your school'); //TODO - Margaux may want this to say 'Register another school', but probably only after we get the big 'Register' link graphic
-  }
-  return $title;
 }
 
 
