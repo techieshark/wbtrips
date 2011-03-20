@@ -1,0 +1,181 @@
+div#ogevents-tally-control {
+  margin-top: 2em;
+}
+
+div#ogevents-tallybox {
+  float: left;
+  padding-right: 1em;
+}
+
+div#ogevents-tallybox > h3, div#ogevents-monthbox > h3 {
+  border-bottom: #C0C0C0 1px dotted;
+  margin-bottom: 10px;
+}
+
+div#ogevents-monthbox table {
+  margin-top: 10px;
+}
+
+div#ogevents-monthbox {
+  float: left;
+  width: 22em;
+  border-left: #C0C0C0 1px dotted;
+  padding-left: 2em;
+  margin-bottom: 2em;
+}
+
+
+div.ogevents-after-form {
+  clear:both;
+}
+
+div.ogevents-after-form p {
+  margin-bottom: 0;
+}
+
+
+fieldset.ogevents-tally div.form-item {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+fieldset.ogevents-tally, fieldset.ogevents-tally fieldset, fieldset.ogevents-tally legend, fieldset.ogevents-tally input
+{
+  margin:0;
+  padding:0;
+}
+
+fieldset.ogevents-tally
+{
+  border:none;
+  width: 23em;
+  margin-bottom: 20px;
+}
+
+fieldset.ogevents-tally legend
+{
+  padding-left: 15px;
+}
+
+
+fieldset.ogevents-participation
+{
+  border: none;
+  /*
+  background: #ffe716;
+  margin-top: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 0px;
+  width: 22em;
+  */
+}
+
+fieldset.ogevents-tally fieldset
+{
+  border:none;
+  position:relative;
+  clear:both;
+}
+
+fieldset.ogevents-tally legend span
+{
+  display:block;
+  position:absolute;
+  left:0;
+  top:1em;
+  padding:9px 0.5em;
+  margin:10px 0 0 0;
+  line-height:1em;
+  width:9em;
+  font-weight:bold;
+  /* background:#423221; */ /* default side text color */
+  /* color: white; */  /* side text color */
+  border-left: #C0C0C0 1px solid;
+  /* border-bottom: black 1px solid; */
+  /* border-top: black 1px solid; */
+}
+
+/*
+fieldset.ogevents-tally fieldset.fieldset-header div#edit-biketrips1-wrapper label span {
+  background-image: url('bike2.jpg');
+  background-repeat:no-repeat;
+  height: 0;
+  overflow: hidden;
+  padding-top: 2em;
+  width: 30px;
+}*/
+
+fieldset.ogevents-tally fieldset.fieldset-body legend span
+{
+  top:0;
+  margin:0;
+}
+fieldset.ogevents-tally fieldset.odd legend span
+{
+  background: white; /* side label color */
+  /* background: #8D775D; *//* side label color */
+  border-bottom: 1px solid #c0c0c0;
+  border-top: 1px solid #c0c0c0;
+/*
+  border-bottom: 1px solid black;
+  border-top: 1px solid black;
+*/
+}
+fieldset.ogevents-tally fieldset.even legend span
+{
+  /* background: #4D4133; *//* side label color */
+   /* background: black; */
+}
+
+fieldset.ogevents-tally label
+{
+  display:block;
+  float:left;
+  clear:none;
+  position:relative;
+  left:10em;
+  border-right:1px solid #fff;
+  text-align:center;
+}
+fieldset.ogevents-tally fieldset.odd label
+{
+  background:#e0dbd5;
+}
+ fieldset.ogevents-tally fieldset.even label
+{
+  background:#d4cfc9;
+}
+
+fieldset.ogevents-tally label span
+{
+  display:block;
+  padding:5px;
+  line-height:1em;
+  background: #332B22; /* top label color */
+  color:#fff;
+  font-weight:bold;
+}
+fieldset.ogevents-tally fieldset.fieldset-body label span
+{
+  padding:0 5px;
+  line-height:0;
+  position:relative;
+  top:-10000em;
+}
+
+fieldset.ogevents-tally input
+{
+  margin:5px;
+  width:2.5em;
+}
+
+
+
+* html fieldset.ogevents-tally legend span
+{
+  padding-top:11px;
+}
+*+html fieldset.ogevents-tally legend span
+{
+  padding-top:11px;
+}

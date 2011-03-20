@@ -1,0 +1,1862 @@
+<?php
+// $Id$
+
+// query returns NIDs of schools (groups) registered for the
+// given events (notice the IN (%s) in the query)
+define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
+  'SELECT DISTINCT oga.group_nid AS school_nid
+  FROM {og_ancestry} oga
+  JOIN {content_type_registration} reg ON reg.nid = oga.nid
+  JOIN {content_field_eventid} field_eventid ON field_eventid.vid = reg.vid
+  JOIN {node} sn ON oga.group_nid = sn.nid
+  WHERE field_eventid.field_eventid_nid IN (%s)
+  ORDER BY sn.title ASC');
+
+define('OGEVENTS_NUM_WEEKS', 5); // # weeks in an event.
+
+define('OGEVENTS_TALLYING', 1);
+define('OGEVENTS_REGISTRATION', 2);
+
+define('OGEVENTS_DEBUG', FALSE);
+
+//TODO - rewrite all href code to use drupal l($text,$path) function
+//TODO - use t() on all output
+// TODO - rename _functions to _ogevents_functions
+
+// TODO: after we prevent revisions from being used, we wouldn't
+//       need {node} in the above, as we'd know we have the latest
+//       revision without needing to check node.vid.
+
+
+// Note: This module doesn't have to be version-aware (it can always
+//  use the most recent node revision).  Thus the {node} table
+//  gives the most recent nid & vid.  node_revisions will have multiple
+//  vid's for any node with multiple revisions, so when we're pulling
+//  data we'll want to join {node} and {node_revisions} on (vid). Same
+//  for {content_field_eventid} and {content_type_registration}: join
+//  on (vid).
+
+// The problem with node revisions is that we're using a (registration)
+// node along with organic groups to track which schools are registered
+// for which events, and if we make a new revision of a registration node
+// we would need to update the og_ancestry table if the event node ref
+// field changed from one event to another.
+// Solution: do not support node revisions (there is really no reason to).
+// TODO: form-alter the Registration node-edit form to disable the
+//       revisions section.
+
+/**
+ * Debug Msg: print if OGEVENTS_DEBUG is set
+ */
+function _dm($string) {
+  if (OGEVENTS_DEBUG) {
+    drupal_set_message($string);
+  }
+}
+
+function _dpm($thing) {
+  if (OGEVENTS_DEBUG) {
+    dpm($thing);
+  }
+}
+
+
+/**
+ * Valid permissions for this module
+ * @return array An array of valid permissions
+ * Permissions:
+ * reports -> can view download links for registered schools
+ */
+function ogevents_perm() {
+  return array('access ogevents content', 'access ogevents reports');
+}
+
+
+/**
+ * Implementation of hook_init.
+ */
+function ogevents_init() {
+  drupal_add_css(drupal_get_path('module', 'ogevents')  . '/ogevents.css');
+}
+
+
+/**
+ * Implementation of hook_menu
+ *
+ * This will register the following paths:
+ * - event/%event_nid/register (for all event_nids which are current).
+ *   The page to register a school for the event given in the url.
+ *
+ * - event/%event_nid/tally/%school_nid  [callback only]
+ *   The page where you record trips for the given event and school. (Newest)
+ *
+ * - event/%event_nid/results
+ *   The final results page w/ a table of all schools and their stats. (Newest)
+ *
+ * - dashboard
+ *   The user's personal dashboard w/ links and info for there schools.
+ *
+ * Note: This hook is rarely called (for instance, when the module is
+ *       first loaded).  Should we call it manually when we need to
+ *       register new items (e.g. when we add events)? TODO.
+ *       Otherwise they'll only show when we clear the menu cache.
+ *
+ */
+function ogevents_menu() {
+  $items = array();
+  $event_nids = _get_current_reg_events();
+  $tlyids = _get_current_tally_events();
+
+  $items['dashboard'] = array(
+        'title' => 'My Schools',
+        'description' => 'View and record results',
+        'page callback' => 'ogevents_page_dashboard',
+        'access arguments' => array('access ogevents content'),
+        'weight' => -55, // TODO - don't set this. let sitebuilder do it. (rm after dev finished)
+        );
+
+  $items['duplicates'] = array(
+        'title' => 'Duplicate Schools',
+        'description' => 'Show duplicate schools',
+        'page callback' => 'ogevents_page_duplicates',
+        'access arguments' => array('access ogevents reports'),
+        'type' => MENU_CALLBACK,
+        );
+
+
+  foreach ($event_nids as &$event_nid) {
+    $items["event/$event_nid/results"] = array(
+        'title callback' => '_ogevents_get_results_page_title',
+        'title arguments' => array(1),
+        'description' => 'Results for all participating schools',
+        'page callback' => 'ogevents_page_results',
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+        );
+
+    $items["event/$event_nid/results/csv"] = array(
+        'title' => 'Results CSV Export',
+        'description' => 'CSV export of results for all participating schools',
+        'page callback' => 'ogevents_page_results_csv_export',
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+        );
+
+    $items["event/$event_nid/register"] = array(
+        'title callback' => '_get_reg_page_title',
+        'title arguments' => array(1),
+        'page callback' => 'ogevents_page_register',
+        'page arguments' => array(1),
+        'access callback' => TRUE,
+        );
+
+    $items["event/$event_nid/register/csv"] = array(
+        'title' => 'Registered Schools CSV Export',
+        'description' => 'CSV export of all registered schools',
+        'page callback' => 'ogevents_page_registered_csv_export',
+        'page arguments' => array(1),
+        'access arguments' => array('access ogevents reports'),
+        'type' => MENU_CALLBACK,
+        );
+  }
+
+  foreach ($tlyids as &$tly) {
+    $items["event/$tly/tally/%"] = array( // Month tally page for given event and school
+        'title' => t('Tally Trips'),
+        'page callback' => 'ogevents_page_tally',
+        'page arguments' => array(1,3),
+        'access arguments' => array('access ogevents content'),
+        'type' => MENU_CALLBACK,
+        );
+    $items["event/$tly/thanks/%"] = array( // tally submission confirmation page
+        'title' => t('Thanks!'),
+        'page callback' => 'ogevents_page_tally_thanks',
+        'page arguments' => array(1,3),
+        'access callback' => TRUE,
+        'type' => MENU_CALLBACK,
+        );
+  }
+
+  return $items;
+}
+
+/*
+ * Return nids of events open for either registration or tallying.
+ * TODO !! sort by tally start date, sooner -> later (in another funct.)
+ */
+function _ogevents_get_open_events() {
+  return array_unique(array_merge(_get_current_reg_events(), _get_current_tally_events()));
+}
+
+
+/**
+ * Returns $a and $b in an array with smaller followed by larger.
+ */
+function _ogevents_util_smallbig($a, $b) {
+  return $a < $b ? array($a,$b) : array($b,$a);
+}
+
+/**
+ * Page to show duplicate schools (name = name).
+ */
+function ogevents_page_duplicates() {
+  $query = 'SELECT n.nid, n.title, '
+         . 'l.street, l.city, l.province AS state, l.postal_code AS zip,'
+         . 'n2.nid AS nid2, l2.street AS street2 , l2.city AS city2, l2.province AS state2, l2.postal_code AS zip2 '
+         . 'FROM {node} n JOIN {node} n2 ON n.title = n2.title '
+         . 'JOIN {location_instance} li ON n.vid = li.vid '
+         . 'JOIN {location_instance} li2 ON n2.vid = li2.vid '
+         . 'JOIN {location} l ON li.lid = l.lid '
+         . 'JOIN {location} l2 ON li2.lid = l2.lid '
+         . 'WHERE n.type = "school" AND n.nid <> n2.nid';
+  $res = db_query($query);
+
+  $header = array('nid', 'title', 'street', 'city', 'state', 'zip', 'nid2', 'street2', 'city2', 'state2', 'zip2');
+  $samefields = array('street', 'city', 'state', 'zip');
+
+  $inspected = array();
+  $rows = array();
+
+  while ($db_row = db_fetch_array($res)) {
+
+    // if we've already seen this pair of nids, we don't want to reprint it.
+    list($small_nid, $large_nid) = _ogevents_util_smallbig($db_row['nid'], $db_row['nid2']);
+    if (isset($inspected[$small_nid]) && isset($inspected[$small_nid][$large_nid])) {
+      continue;
+    }
+    else { // if not yet seen this pair, add to the set of inspected pairs
+      $inspected[$small_nid][$large_nid] = TRUE;
+    }
+
+    $row = array();
+    array_push($row, $db_row['nid'], $db_row['title']);
+
+    foreach ($samefields as $f) {
+      $row[] = "'" . $db_row[$f] . "'";
+    }
+
+    $row[] = $db_row['nid2'];
+
+    foreach ($samefields as $f) {
+      $first = $db_row[$f];
+      $second = $db_row[$f . '2'];
+
+      if ($second == $first) {
+        $row[] = "[same]"; // make similarities clear
+      }
+      else {
+        $row[] = "'" . $second . "'";
+      }
+    }
+
+    $rows[] = $row;
+  }
+
+  return theme('table', $header, $rows);
+}
+
+
+/**
+ * Returns array of nids of schools registered for the given event,
+ * where the user is a member of those school OGs.
+ */
+function _ogevents_get_my_registered_schools($event_nid) {
+  global $user;
+
+  $all_registered_schools = _ogevents_get_registered_schools($event_nid);
+  if (empty($user->og_groups) || empty($all_registered_schools)) {
+    return array();
+  } else {
+    $registered_groups = array_intersect(array_keys($user->og_groups), $all_registered_schools);
+
+    // Since og_groups may contain schools we registered for a previous event,
+    // make sure the current event's registration is owned by us (otherwise it is
+    // someone else's event).
+
+    $my_registered_schools = array();
+    foreach ($registered_groups as $group_id) {
+      $reg_nid = _ogevents_get_registration($event_nid, $group_id);
+      $registration = node_load($reg_nid);
+      if ($registration->uid == $user->uid) {
+        $my_registered_schools[] = $group_id;
+      }
+    }
+
+    return $my_registered_schools;
+  }
+
+  // filter my og schools by event:
+  // look for registrations owned by a given user uid.
+  //filter_registered_by_user_for_event($my_schools, $event_nid, $user->uid);
+  // This SQL does what this function does.  Consider using it instead.
+  //SELECT oga.group_nid FROM og_ancestry oga JOIN content_type_registration r ON oga.nid = r.nid JOIN node n ON r.vid = n.vid JOIN content_field_eventid e ON e.vid = r.vid WHERE n.uid = %user AND e.field_eventid_nid = %event
+}
+
+
+function _ogevents_get_school_coordinator_uid($school_nid, $event_nid) {
+  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_node = node_load($reg_nid);
+  if (! $reg_node->nid) {
+    return; // invalid node, no result.
+  }
+  return $reg_node->uid;
+}
+
+
+/**
+ * Returns name (full name if set, or username) of the coordinator for the given school
+ * during the specified event.  [Owner of registration node is considered coordinator.]
+ * Pre-condition: The given school is registered for the given event.
+ *
+ * @param $as_link if TRUE, returns name as a link to contact page
+                   (with redirect set to return to the current page).
+ */
+function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
+
+  $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+  if (! $coordinator_uid) {
+   return;
+  }
+
+  // get username or profile name
+  $coordinator = user_load($coordinator_uid);
+  $name = $coordinator->name;
+  profile_load_profile($coordinator);
+  if (!empty($coordinator->profile_fullname)) {
+    $name = $coordinator->profile_fullname;
+  }
+
+  if ($as_link) { // show as link if user contact form is enabled.
+    // see contact.module _contact_user_tab_access for reference
+
+    global $user;
+
+    // Anonymous users cannot have contact forms,
+    // and users can't contact themselves.
+    if (!$coordinator->uid ||
+         $user->uid == $coordinator->uid) {
+      return $name;
+    }
+
+    // User admins can contact any user, and
+    // users with contact form set can be contacted by other users
+    if (user_access('administer users') || !empty($coordinator->contact)) {
+      if (!$user->uid) { //anonymous user
+        // Here we're assuming logintoboggan will be used to show login for access denied pages
+        $title = "Log in to contact coordinator.";
+      }
+      else {
+        $title = "Contact coordinator.";
+      }
+      //link to contact page, and ensure that after submit,
+      //they return here (so we don't need perm. to view user's page).
+      return l($name, "user/$coordinator->uid/contact",
+               array('attributes' => array('title' => $title),
+                     'query' => drupal_get_destination()));
+    }
+  }
+
+  // If we haven't already returned something, fall back on returning name only
+  return $name;
+}
+
+
+/**
+ * Output a page with results for all schools in the specified event in a table.
+ */
+function ogevents_page_results($event_nid) {
+  $output = '<p>' . 'You may ' . l('download these results', "event/$event_nid/results/csv") . '.' . '</p>';
+
+  _dm("Event: $event_nid"); //DEBUG
+
+  $header = _ogevents_get_challenge_results_header(FALSE);
+  $rows = _ogevents_get_challenge_results_data($event_nid, TRUE, FALSE);
+
+  $output .= theme('table', $header, $rows);
+  return $output;
+}
+
+
+function ogevents_page_results_csv_export($event_nid) {
+
+  // set headers
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment; filename="results-' . $event_nid . '.csv"');
+
+  // print CSV
+  $csv = implode(",", _ogevents_get_challenge_results_header(TRUE)) . "\n";
+  $rows = _ogevents_get_challenge_results_data($event_nid, FALSE, TRUE);
+  foreach ($rows as $row) {
+    $line = implode(",", $row);
+    $csv .= $line . "\n";
+  }
+  print($csv);
+
+  exit(); //don't let Drupal do anything else.
+
+}
+
+/**
+ * Return header for the CSV file.
+ */
+function _ogevents_get_registered_schools_header() {
+  return array('School', 'Address', 'City', 'State', 'Zip', 'Coordinator', 'Coordinator Email', 'Coordinator Phone', 'Registered on');
+  //todo ARG. we need row for 'fully entered info'.
+}
+
+function _ogevents_get_registered_schools_rows($event_nid) {
+  $rows = array();
+
+  $school_nids = _ogevents_get_registered_schools($event_nid);
+  foreach ($school_nids as $school_nid) {
+    $school = node_load($school_nid);
+    $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+    $registration = node_load($reg_nid);
+    $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+    $coordinator = user_load($coordinator_uid);
+    profile_load_profile($coordinator);
+
+    $rows[] = array($school->title,
+                    $school->locations[0]['street'], $school->locations[0]['city'],
+                    $school->locations[0]['province'], $school->locations[0]['postal_code'],
+                    _ogevents_get_school_coordinator($school_nid, $event_nid, FALSE),
+                    $coordinator->mail,
+                    $coordinator->profile_phone,
+                    '"' . format_date($registration->created, 'custom', 'Y-m-d H:i:s') . '"',
+                    );
+  }
+  return $rows;
+}
+
+/**
+ * Cause a CSV file to be sent to the browser, containing registered schools.
+ */
+function ogevents_page_registered_csv_export($event_nid) {
+  // set headers
+  header('Content-Type: text/csv');
+  header('Content-Disposition: attachment; filename="registrations-' . $event_nid . '.csv"');
+
+  // print CSV
+  $csv = implode(",", _ogevents_get_registered_schools_header()) . "\n";
+  $rows = _ogevents_get_registered_schools_rows($event_nid);
+  foreach ($rows as $row) {
+    $line = implode(",", $row);
+    $csv .= $line . "\n";
+  }
+  print($csv);
+
+  exit(); //don't let Drupal do anything else.
+
+}
+
+/**
+ * @param csv - if for CSV output; includes more columns if user has permission
+ */
+function _ogevents_get_challenge_results_header($csv = FALSE) {
+
+  // Note - everything before 'Bike' is the same as in the
+  // registered school export. consider consolidating.
+  $columns = array(
+    // header field => array (is_access_controlled, show on page, show on csv)
+    'School'               => array(FALSE, TRUE,  TRUE),
+    'Address'              => array(FALSE, FALSE, TRUE),
+    'City'                 => array(FALSE, TRUE,  TRUE),
+    'State'                => array(FALSE, FALSE, TRUE),
+    'Zip'                  => array(FALSE, FALSE, TRUE),
+    'Coordinator'          => array(FALSE, TRUE,  TRUE),
+    'Coordinator Email'    => array(TRUE,  FALSE, TRUE),
+    'Coordinator Phone'    => array(TRUE,  FALSE, TRUE),
+    'Walk'                 => array(FALSE, TRUE,  TRUE),
+    'Bike'                 => array(FALSE, TRUE,  TRUE),
+    'Other'                => array(FALSE, TRUE,  TRUE),
+    'Total'                => array(FALSE, TRUE,  TRUE),
+    'Student Participants' => array(FALSE, FALSE, TRUE),
+    'Student Body'         => array(FALSE, FALSE, TRUE),
+    'Student Percentage'   => array(FALSE, FALSE, TRUE),
+    'Students'             => array(FALSE, TRUE,  FALSE),
+    'Staff'                => array(FALSE, TRUE,  TRUE),
+    'Parents'              => array(FALSE, TRUE,  TRUE),
+    'Last Tally Activity'  => array(FALSE, FALSE, TRUE),
+  );
+
+  $header = array();
+  foreach (array_keys($columns) as $field) {
+    $access_controlled = $columns[$field][0];
+    $on_page = $columns[$field][1];
+    $on_csv = $columns[$field][2];
+
+    if ( (!$access_controlled) || ($access_controlled && user_access('access ogevents reports')) ) {
+      if (($on_csv && $csv) || ($on_page && !$csv)) {
+        array_push($header, $field);
+      }
+    }
+  }
+
+  return $header;
+}
+
+/**
+ * Returns number in float format with no trailing zeros.
+ */
+function _ogevents_percentify($num) {
+  if ($num == 0) return 0; //handle special case so we don't return an empty string.
+  return trim(sprintf("%.1f", $num), ".0");
+}
+
+
+/**
+ * Return array of rows, each row containing results for one school in the given event.
+ * @param coordinator_as_link TRUE if the coordinator name should be a link to their contact form
+ * @param csv - if data is intended for CSV output, in which case extra fields are included (if user has permission).
+ */
+function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, $csv = FALSE) {
+  $rows = array();
+
+  // foreach school, add results to table..
+  foreach (_ogevents_get_registered_schools($event_nid) as $school_nid) {
+    $row = array();
+
+    $school_node = node_load($school_nid);
+
+    $results = _ogevents_get_results($school_nid, $event_nid);
+    $bike = $results['bike_trips'];
+    $walk = $results['walk_trips'];
+    $other = $results['other_trips'];
+    $total = $bike + $walk + $other;
+
+
+    // TODO - idea - make a filter function to keep certain keys out.
+    // Instead of the following somewhat complicated/ugly if/else code (could use similar code for registered schools csv)
+    array_push($row, $school_node->title);
+
+    if ($csv) {
+      array_push($row, $school_node->locations[0]['street']);
+    }
+
+    array_push($row,$school_node->locations[0]['city']);
+
+    if ($csv) {
+      array_push($row, $school_node->locations[0]['province'],
+                       $school_node->locations[0]['postal_code']);
+    }
+
+    array_push($row, _ogevents_get_school_coordinator($school_nid, $event_nid, $coordinator_as_link));
+
+    if ($csv && user_access('access ogevents reports')) {
+      $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+      $coordinator = user_load($coordinator_uid);
+      profile_load_profile($coordinator);
+      array_push($row, $coordinator->mail, $coordinator->profile_phone);
+    }
+
+    array_push($row, $walk, $bike, $other, $total);
+
+    if ($csv) {
+      array_push($row, $results['participants'],
+                       $results['studentbody'],
+                       $results['student_percentage']);
+    }
+    else { //human friendly format for web only
+      $students = sprintf("%d of %d (%s%%)",
+                        $results['participants'],
+                        $results['studentbody'],
+                        _ogevents_percentify($results['student_percentage']));
+      array_push($row, $students);
+    }
+
+    array_push($row, $results['staff'], $results['parents']);
+
+    if ($csv) { // date of last tally activity
+      $timestamp = _ogevents_get_latest_tally_timestamp($school_nid, $event_nid);
+      array_push($row, $timestamp ? format_date($timestamp, 'custom', 'Y-m-d H:i:s') : '');
+    }
+
+    $rows[] = $row;
+  }
+  return $rows;
+}
+
+/**
+ * Get a unix timestamp for the most recently updated tally or registration
+ * for a given school and event.
+ * Returns false if no tally data (trips, participation) has been recorded.
+ */
+function _ogevents_get_latest_tally_timestamp($school_nid, $event_nid) {
+  $timestamp = 0;
+
+  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  if (!$reg_nid) {
+    return FALSE; // no registration, so no tallies either
+  }
+
+  $reg_node = node_load($reg_nid);
+  if ($reg_node->nid) {
+    $staff = $reg_node->field_staff[0]['value'];
+    $parents = $reg_node->field_parents[0]['value'];
+    $participants = $reg_node->field_participants[0]['value'];
+    $studentbody = $reg_node->field_studentbody[0]['value'];
+  }
+
+  // consider participation info as tallying activity, use for timestamp
+  if ($staff + $parents + $participants + $studentbody > 0) {
+    $timestamp = $reg_node->changed;
+  }
+
+  // pick out the latest timestamp from the tallies:
+  $query = "SELECT n.changed FROM {node} n
+  JOIN {content_type_triptally} t ON n.vid = t.vid
+  JOIN {og_ancestry} oga ON t.nid = oga.nid
+  JOIN {content_field_eventid} e ON t.vid = e.vid
+  WHERE oga.group_nid = %d AND e.field_eventid_nid = %d
+  ORDER BY n.changed DESC LIMIT 1";
+  $tally_time = db_result(db_query($query, $school_nid, $event_nid));
+
+  if ($tally_time > $timestamp) {
+    $timestamp = $tally_time;
+  }
+
+  return $timestamp;
+}
+
+
+/**
+ * Page callback to create dashboard page (My Schools).
+ * Displays user's schools and other useful info/links.
+ * Basically, a first stop for logged in users.
+ * Only logged in users see this page.
+ */
+function ogevents_page_dashboard() {
+  global $user;
+  $output = "";
+
+  // Welcome, Joe User.
+
+  /*
+  $name = $user->name;
+  profile_load_profile($user);
+  if (!empty($user->profile_fullname)) {
+    $name = $user->profile_fullname;
+  }
+  $output .= '<p>' . "Welcome, $name.";
+  */
+
+  $events = _ogevents_get_open_events();
+
+  if (count($events) == 0) {
+    $output .= t('There are currently no events open for registration or tallying.  Please return later.');
+  }
+
+  foreach ($events as $event_nid) {
+    // print event name as header
+    $event_node = node_load($event_nid);
+    if (count($events) > 1) {
+      $output .= "<h2>My Schools for " . $event_node->title . "</h2>";
+    } // otherwise no need for title.
+
+    $registration_open = _ogevents_is_registration_open($event_node);
+    $tallying_open = _ogevents_is_tallying_open($event_node);
+
+    $schools = _ogevents_get_my_registered_schools($event_nid);
+    if (empty($schools)) { // no registered school; allow registration if possible
+      if ($registration_open) {
+        // print 'Register for this' link.
+        $output .= '<p>' . t('You have no registered schools yet.  You can <a href="@register-page">register a school</a>.',
+                    array('@register-page' => url("event/$event_nid/register"))) . '</p>';
+      }
+      else {
+        $output .= '<p>' . t('Registration is closed.') . '</p>';
+      }
+    }
+    else { // have 1+ registered schools
+
+      // build table header + output instructions
+      $header = array('School');
+      if ($tallying_open) {
+        array_push($header, 'Walk Trips', 'Bike Trips', 'Other Trips', 'Participation');
+        $output .= '<p>' . t('Click the name of a school to tally trips.') . '</p>';
+      }
+      else {
+        $output .= '<p>'
+                . t('Trip Tallying will be available on @tally-start.',
+                    array('@tally-start' =>
+                      format_date(
+                        _ogevents_get_tally_start($event_nid),
+                        'custom', 'F j, Y')
+                    )
+                  ) . '</p>';
+      }
+
+
+      $header[] = 'School Profile';
+      $rows = array();
+
+      foreach ($schools as $school_nid) {
+        $school_name = _get_node_title($school_nid);
+        $row = array();
+
+        if ($tallying_open) {
+          // link school name -> tally page
+          $row[] = l($school_name, "event/$event_nid/tally/$school_nid",
+                     array('attributes' => array('title' => "Tally trips for $school_name")));
+
+          // get school challenge results for current event.
+          $results = _ogevents_get_results($school_nid, $event_nid);
+          array_push($row, $results['walk_trips'],
+                           $results['bike_trips'],
+                           $results['other_trips'],
+                           _ogevents_percentify($results['student_percentage']) . '%');
+        }
+        else {
+          // tallying is not open (yet) but registration must be,
+          // so nothing to show but the school name and following link(s) (edit, etc).
+          $row[] = $school_name;
+        }
+
+        // add edit link
+        $row[] = l('edit', "node/$school_nid/edit",
+                           array('query' => drupal_get_destination(),
+                                 'attributes' => array('title' => 'Edit basic info like name and address.')));
+
+        //if ($registration_open) {
+          // add unregister link
+          // $row[] = l('unregister', //TODO
+       //}
+
+        $rows[] = $row;
+      }
+
+      $output .= theme('table', $header, $rows);
+
+      if ($registration_open) {
+        $output .= '<p>' . l('Register another school.', "event/$event_nid/register") . '</p>';
+      }
+    }
+    $output .= "<br/>";
+  }
+
+  return $output;
+}
+
+/**
+ * Return an array of results for the given school and event
+ */
+function _ogevents_get_results($school_nid, $event_nid) {
+
+  $biketrips = $walktrips = $othertrips = 0;
+
+  foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+    $tally_nid = _ogevents_get_nid_triptally($event_nid, $school_nid, $week);
+    if ($tally_nid) {
+      $tally_node = node_load($tally_nid);
+      // assert tally_node is valid result (s/be, since t_nid is valid).
+      $biketrips += $tally_node->field_biketrips[0]['value'];
+      $walktrips += $tally_node->field_walktrips[0]['value'];
+      $othertrips += $tally_node->field_othertrips[0]['value'];
+    }
+  }
+
+  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_node = node_load($reg_nid);
+  if ($reg_node->nid) {
+    $staff = $reg_node->field_staff[0]['value'];
+    $parents = $reg_node->field_parents[0]['value'];
+    $participants = $reg_node->field_participants[0]['value'];
+    $studentbody = $reg_node->field_studentbody[0]['value'];
+    $percent = $studentbody ? ($participants / $studentbody * 100) : 0;
+  }
+
+  return array('bike_trips' => $biketrips,
+               'walk_trips' => $walktrips,
+               'other_trips' => $othertrips,
+               'staff' => $staff,
+               'parents' => $parents,
+               'participants' => $participants,
+               'studentbody' => $studentbody,
+               'student_percentage' => $percent);
+}
+
+
+/**
+ * Returns the default current event, which the site admin specifies.
+ * TODO: create admin page to allow admin to set this so we don't hard-code it.
+ * XXX - this doesn't make sense.  are we talking current in the sense of 'before reg' or 'before tally' or...?
+ */
+function _ogevents_get_current_event() {
+  return 1019; //TODO - this is just a placeholder (this is the test event).
+}
+
+
+
+/**
+ * Returns array of NIDs of schools which are registered for the given event(s).
+ * If the event is not specified, we return schools registered for any event open for registration.
+ * @param events Either a single event NID, an array of event NIDs, or NULL.
+ */
+function _ogevents_get_registered_schools($event_nids = NULL) {
+  if (empty($event_nids)) { // look for schools registered for any event
+    $events = _get_current_reg_events();
+  } else if (is_array($event_nids)) {
+    $events = $event_nids;
+  } else {
+    $events = array($event_nids);
+  }
+  $result = db_query(OGEVENTS_QUERY_REGISTERED_SCHOOLS, implode(', ', $events));
+
+  $registered_schools = array();
+  while ($row = db_fetch_object($result)) $registered_schools[] = $row->school_nid;
+
+  return $registered_schools;
+}
+
+
+/**
+ * Returns true if $sid is a school registered for the specified event.
+ */
+function _ogevents_is_registered($sid, $event_nids) {
+  return array_key_exists($sid, _ogevents_get_registered_schools($event_nid));
+}
+
+/**
+ * Page to register a school.
+ * @param $event_nid the event to register for
+ */
+function ogevents_page_register($event_nid) {
+  global $user;
+
+/* Print header.
+ * If ! logged in, suggest logging in.  Print bit about registering sch.
+ * Else, print rest of message.
+ * Print dropdown.
+ * Print currently registered schools list.
+ */
+
+  if (! $user->uid) { // anonymous user
+    $output .= '<p>If your school isn’t listed below, '
+            .  l('log in', 'user/login', array('query' => drupal_get_destination()))
+            .  ' or '
+            .  l('create an account', '/user/register', array('query' => drupal_get_destination()))
+            .  ' to register your school.</p>';
+  }
+  else { // logged in
+    $output .= '<p><strong>Please read these important instructions before you register!</strong></p>';
+    $output .= '<p><ol><li>';
+    $output .= 'Check if your school already appears on the list of registered schools below. ';
+    $output .= 'If it has, click the coordinator\'s name to contact them through this site and learn how you can help.';
+    $output .= '</li><li>';
+    $output .= 'If your school has participated in the past but is not yet registered for Challenge 2011, it will appear in the drop-down menu. ';
+    $output .= 'Select your school and click the Register button to register and identify yourself as coordinator.';
+    $output .= '</li><li>';
+    $output .= 'If you don’t see your school in either the drop-down menu or the list below it, you’ll need to '
+            .  l('add and register your school', 'node/add/school', array('query' => "event=$event_nid")) . '.';
+    $output .= '</li></ol></p>';
+
+    $output .= '<h2>Unregistered schools</h2>';
+    $output .= drupal_get_form('ogevents_register_form', $event_nid);
+  }
+
+// from registration-form theme file...
+
+  $output .= '<h2 style="margin-top:20px;">Currently Registered Schools</h2>';
+
+  // for BTA Admins, insert a 'Download Registered Schools List' link.
+  if (user_access('access ogevents reports')) {
+    $output .= l('Download Registered Schools List', "event/$event_nid/register/csv");
+  }
+
+  $header = array('School', 'City', 'Coordinator');
+  $rows = array();
+
+  $school_nids = _ogevents_get_registered_schools($event_nid);
+  foreach ($school_nids as $school_nid) {
+    $school = node_load($school_nid);
+    $rows[] = array($school->title, $school->locations[0]['city'],
+                    _ogevents_get_school_coordinator($school_nid, $event_nid, TRUE));
+  }
+
+  _dpm($rows); //DEBUG
+
+  $output .= theme('table', $header, $rows);
+
+  return $output;
+}
+
+
+/**
+ * Implementation of hook_theme.
+ */
+function ogevents_theme($existing, $type, $theme, $path) {
+  return array(
+    'signin-page' => array(
+      'arguments' => array('options' => NULL),
+      'template'  => 'signin-form',
+    ),
+  );
+}
+
+
+function _ogevents_is_tallying_open($event_node) {
+  return _ogevents_is_open_for($event_node, OGEVENTS_TALLYING);
+}
+
+function _ogevents_is_registration_open($event_node) {
+  return _ogevents_is_open_for($event_node, OGEVENTS_REGISTRATION);
+}
+
+/**
+ * Returns true/false if if the $event_node is open for registration or tallying.
+ * @param event: either a numeric node id (nid) or a node
+ * @param $window OGEVENTS_REGISTRATION or OGEVENTS_TALLYING (the event window
+ *        we're interested in).
+ */
+function _ogevents_is_open_for($event, $window) {
+  $event_node = is_numeric($event) ? node_load($event) : $event;
+  if ($window == OGEVENTS_TALLYING) {
+    $field = 'field_tallydates';
+  }
+  else {
+    $field = 'field_regdates';
+  }
+
+  $today = getdate();
+  $UTC_today = $today[0];
+
+    $datefield = $event_node->$field;
+
+    $start_date = $datefield[0]['value'];
+    $end_date = $datefield[0]['value2'];
+
+    if (($UTC_today >= $start_date) && ($UTC_today <= $end_date)) {
+      return true;
+    }
+    else {
+      return false;
+    }
+
+}
+
+/**
+ * Return date of tally start
+ */
+function _ogevents_get_tally_start($event) {
+  $event_node = is_numeric($event) ? node_load($event) : $event;
+  return $event_node->field_tallydates[0]['value'];
+}
+
+
+/** Get events which are 'current' and published.
+ * Current in this context means that today's date is between the 'from' and 'to' component
+ * of the specified CCK date field given by name in the parameter $field.
+ *
+ * @return Array of node IDs.
+ */
+function _get_current_events($field) {
+  $result = db_query("SELECT n.nid FROM {node} n WHERE n.type = 'event' and n.status = 1");
+  $nodes = array();
+  while ($row = db_fetch_object($result)) {
+    $nodes[] = $row->nid;
+  }
+
+  $today = getdate();
+  $UTC_today = $today[0];
+  $current_event_nids = array();
+
+  //check datefield/UTC dates against current date
+  foreach ($nodes as $nid) {
+    $event_node = node_load($nid);
+    $datefield = $event_node->$field;
+
+    $start_date = $datefield[0]['value'];
+    $end_date = $datefield[0]['value2'];
+
+    if (($UTC_today >= $start_date) && ($UTC_today <= $end_date)) {
+      $current_event_nids[] = $nid;
+    }
+  }
+  return $current_event_nids;
+}
+
+
+
+/**
+ * Get an array of all published Events for which registration is open.
+ */
+function _get_current_reg_events() {
+  return _get_current_events("field_regdates");
+}
+
+/**
+ * Get an array of all published Events which are now in their tallying period.
+ */
+function _get_current_tally_events() {
+  return _get_current_events("field_tallydates");
+}
+
+function _ogevents_get_results_page_title($event_nid) {
+  if (count(_get_current_reg_events()) > 1) {
+    return t('Results for @event', array('@event' => _get_node_title($event_nid)));
+  }
+  else { // Keep things simple if only one event running
+    return t('See Challenge results');
+  }
+}
+
+function _get_reg_page_title($nid) {
+  if (count(_get_current_reg_events()) > 1) {
+    $node = node_load($nid);
+    $title = t("Register your school for $node->title");
+  }
+  else {
+    $title = t('Register your school'); //TODO - Margaux may want this to say 'Register another school', but probably only after we get the big 'Register' link graphic
+  }
+  return $title;
+}
+
+function _get_tally_page_title($nid) {
+  $node = node_load($nid);
+  $title = t('Tally trips for @school-name', array('@school-name' => $node->title));
+  return $title;
+}
+
+
+
+/**
+ * Build a form to register a school for an event.
+ * Form contains a single dropdown of unregistered schools.
+ */
+function ogevents_register_form($form_state, $event_nid) {
+  // get nids of schools registered for $event_nid
+  $regd_array = _ogevents_get_registered_schools($event_nid);
+
+  $query = "SELECT node.nid AS nid
+    FROM {node}
+    LEFT JOIN {og} ON node.nid = og.nid
+    WHERE node.type = 'school' AND node.status <> 0 AND og.og_directory <> 0
+    ORDER BY node.title ASC";
+  $result = db_query($query);
+  $allgroups = array(); // will be all schools published and listed in the directory
+  while ( $obj = db_fetch_object ($result) ) {
+    $allgroups[] = $obj->nid;
+  }
+
+  $nids = array_diff($allgroups, $regd_array); // array of unregistered schools
+  $titles = array();
+  foreach ($nids as $nid) {
+    $node = node_load($nid);
+    $titles[] = t($node->title . " - " . $node->locations[0]['city']) ;
+  }
+
+  // build array like (nid -> "<school name> - <city>")
+  $first_option = array(-1 => "Select a School...");
+  $normal_options = array_combine($nids, $titles);
+  $options = $first_option + $normal_options;
+
+  $form['og_register'] = array(
+      '#type' => 'select',
+      '#title' => t('Select a School'),
+      '#multiple' => FALSE,
+      '#options' => $options,
+      '#required' => TRUE,
+      );
+  $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Register',
+      );
+
+  $form['register_link'] = array(
+      '#value' => ' &nbsp; or &nbsp; ' . l('My school doesn\'t appear in the menu or the list below.', 'node/add/school', array('query' => "event=$event_nid")),
+      );
+
+  return $form;
+}
+
+/**
+ * Return the title for the node with the given nid
+ */
+function _get_node_title($nid) {
+  $node = node_load($nid);
+  return $node->title;
+}
+
+function _get_node_field($nid, $field) {
+  return node_load($nid)->$field;
+}
+
+/** Return a template registration node object.
+ *  Everything but field_eventid[0]['nid'] is filled in
+ */
+function _get_blank_regnode() {
+  $newNode = (object) NULL;
+  $newNode->type = 'registration';
+  $newNode->title = 'registration';
+  $newNode->uid = $GLOBALS['user']->uid;
+  $newNode->created = strtotime("now");
+  $newNode->changed = strtotime("now");
+  $newNode->status = 1;
+  $newNode->comment = 0;
+  $newNode->promote = 0;
+  $newNode->moderate = 0;
+  $newNode->sticky = 0;
+  $newNode->field_studentbody[0]['value'] = 0;
+  $newNode->field_participants[0]['value'] = 0;
+  $newNode->field_staff[0]['value'] = 0;
+  $newNode->field_parents[0]['value'] = 0;
+  return $newNode;
+}
+
+/**
+ * Form validate: registering a school
+ * Ensures user didn't forget to select school.
+ */
+function ogevents_register_form_validate($form, &$form_state) {
+  $school_picked = $form_state['values']['og_register'];
+  if ($school_picked == -1) {
+    form_set_error('og_register', t('No school was selected.'));
+  }
+}
+
+/**
+ * Form submit function to register a school.
+ *
+ * A new 'registration' node is saved which records the event
+ * we're signing up for and connects (via og_ancestry table) to
+ * the school which had been selected.
+ */
+function ogevents_register_form_submit($form, &$form_state) {
+  $newNode = _get_blank_regnode();
+  $newNode->field_eventid[0]['nid'] = $eid = $form_state['values']['event']; //event nid to signup for
+
+  $gid = $form_state['values']['og_register']; // nid of selected school being registered
+
+  node_save($newNode);
+  $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
+  db_query($sql, $newNode->nid, $gid);
+
+  // clear form storage, to allow form to submit
+  $form_state['storage'] = array();
+
+  og_save_subscription($gid, $GLOBALS["user"]->uid, array('is_active' => 1));
+
+  drupal_set_message(_ogevents_get_post_registration_msg($eid));
+
+  $form_state['redirect'] = 'dashboard';
+}
+
+
+/**
+ * Remove unnecessary elements (mostly OG stuff) from School node-add form, plus other cleanup.
+ */
+function _remove_og_extras(&$form) {
+  $form['locations'][0]['province']['#pre_render'][] = 'select_province';
+
+  $form['og_private']['#type'] = 'hidden';
+  $form['og_description']['#required'] = FALSE;
+  $form['og_language']['#type'] = 'hidden';
+
+  unset($form['buttons']['preview']);
+
+  return $form;
+}
+
+
+/**
+ * Turn states into a drop-down, and only show OR/WA
+ */
+function select_province($element) {
+  /* If we want all states shown, uncomment this.  But for now we'll just hard-code OR/WA as options.
+  $provinces = location_get_provinces('us');
+  if (!empty($provinces)) {
+    while (list($code, $name) = each($provinces)) {
+      $matches[$name] = $name;
+    }
+  }
+  */
+  $element['#multiple'] = FALSE;
+  $element['#type'] = 'select';
+  $element['#options'] = array("Oregon" => "Oregon", "Washington" => "Washington");
+  unset($element['#size']);
+  return $element;
+}
+
+/** Simplify form and change what happens on submit.
+ */
+function ogevents_form_school_node_form_alter(&$form, &$form_state) {
+
+  $form['#after_build'][] = '_remove_og_extras';
+  $form['#submit'][] = 'ogevents_school_form_submit';
+  $form['#validate'][] = 'ogevents_form_school_prevent_duplicates_validate';
+
+  if (isset($form_state['post']['name'])) {
+    drupal_set_message("Your School has been registered.");
+    $form['#redirect'] = 'dashboard';
+  }
+  return $form;
+}
+
+
+/**
+ * Do not allow identical schools (same name/city) from the school-node-add form.
+ */
+function ogevents_form_school_prevent_duplicates_validate($form, &$form_state) {
+
+    $name = $form_state['values']['title'];
+    $city = $form_state['values']['locations'][0]['city'];
+
+    //query for count of identical schools
+    $query = "SELECT COUNT(*) FROM {node} n
+              JOIN {location_instance} li ON n.nid = li.nid
+              JOIN {location} l ON li.lid = l.lid
+              WHERE n.title = '%s' AND l.city = '%s'";
+
+    $school_nid = $form_state['values']['nid']; // will be non-empty on updates
+    if (!empty($school_nid)) { // when seeking duplicates, ignore this node.
+      $query .= " AND n.nid <> $school_nid";
+    }
+
+    $count = db_result(db_query($query, $name, $city));
+
+    if ($count > 0) {
+      $err_msg = "A school with the same name and city already exists.";
+      $event_nid = $_GET['event'];
+      if (! empty($event_nid)) {
+        $err_msg .= ' <a href="/event/' . $event_nid . '/register">Find it here.</a>';
+      }
+      form_set_error('edit-title', t($err_msg));
+    }
+}
+
+
+
+function ogevents_school_form_submit($form, &$form_state) {
+  // Setup form values so we're ready to add an organic group too.
+  $form_state['values']['og_description'] = $form_state['values']['title']; // og desc = <school name>
+  $form_state['values']['og_register'] = 0; // don't allow for group joins during user registration
+  $form_state['values']['og_private'] = 0; // always public
+  $form['locations'][0]['name'] = $form_state['values']['title']; // school location = <school name>
+  //TODO: I think location name and og_description could be left blank. (Are they used elsewhere?)
+}
+
+/**
+ * Returns text to send to drupal_set_message after registering a school.
+ */
+function _ogevents_get_post_registration_msg($event_nid) {
+  return t('Congratulations, your school has been registered. ' .
+           'You may log trips via My Schools below, or <a href="@register-page">Register another school</a>.',
+           array('@register-page' => url("event/$event_nid/register")));
+}
+
+/**
+ * Implementation of hook_nodeapi.
+ * If school created, insert registration.
+ * If school deleted, delete registration and tallies.
+ */
+function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'insert':
+      if ($node->type == 'school') {
+        $newNode = _get_blank_regnode();
+
+        $event_nid = $_GET['event'];
+        $newNode->field_eventid[0]['nid'] = $event_nid;
+        $gid = $node->nid; //school nid
+
+        if ($event_nid) {
+          node_save($newNode);
+          $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
+          db_query($sql, $newNode->nid, $gid);
+          drupal_set_message(_ogevents_get_post_registration_msg($event_nid));
+        }
+        else {
+          drupal_set_message("There's been an error; your school has not been registered.");
+        }
+
+        $_REQUEST['destination'] = 'dashboard';
+      }
+    break;
+    case 'delete':
+      if ($node->type == 'school') {
+        $registrations = _ogevents_get_school_registrations($node->nid);
+        // for all events the school registered for,
+        //   delete all tallies associated with the school
+        //   delete the registration for the event
+        foreach ($registrations as $reg_nid) {
+          $r_node = node_load($reg_nid);
+          _ogevents_delete_tallies($node->nid, $r_node->field_eventid[0]['nid']);
+          node_delete($reg_nid);
+          drupal_set_message("Deleted registration: $reg_nid");
+        }
+      }
+    break;
+  }
+}
+
+
+/**
+ * Get IDs of all registrations for the given school.
+ * @return array of registration ids.
+ */
+function _ogevents_get_school_registrations($school_nid) {
+  $registrations = array();
+  $query = 'SELECT n.nid FROM {node} n '
+         . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
+         . 'WHERE n.type = "registration" AND oga.group_nid = %d';
+  $res = db_query($query, $school_nid);
+  while ($reg_nid = db_result($res)) {
+    $registrations[] = $reg_nid;
+  }
+  return $registrations;
+}
+
+
+/**
+ * Delete all tally nodes (content_type_triptally) for
+ * the given school and event.
+ */
+function _ogevents_delete_tallies($school_nid, $event_nid) {
+  // get node ids for tallies.
+  $query = 'SELECT t.nid FROM {content_type_triptally} t '
+         . 'JOIN {content_field_eventid} e ON t.nid = e.nid '
+         . 'JOIN {og_ancestry} oga ON t.nid = oga.nid '
+         . 'WHERE oga.group_nid = %d AND e.field_eventid_nid = %d';
+  $res = db_query($query, $school_nid, $event_nid);
+  while ($tally_nid = db_result($res)) {
+    node_delete($tally_nid);
+    drupal_set_message("Deleted tally: $tally_nid");
+  }
+}
+
+/**
+ * Page (Menu item callback) to record trips for the month.
+ */
+function ogevents_page_tally($event_nid, $gid) {
+
+  $school_nid = $gid;
+
+  $output = '';
+  $school_node = node_load($gid); // load school
+
+  // Sanity checks:
+  // - does school exist?
+  if (!$school_node) {
+    drupal_set_message(t('The school ID ("!school-id") does not exist.', array('!school-id' => $gid)), 'error');
+    return $output;
+  }
+  //   - is school registered for this event?
+  $reg_nid = _ogevents_get_registration($event_nid, $gid);
+  if (!$reg_nid) {
+    drupal_set_message(t('No registration was found for the given school ("!school-id") & event ("!event-id").',
+                         array('!school-id' => $gid, '!event-id' => $event_nid)), 'error');
+    return '';
+  }
+  else {
+    // - is this our school?
+    $reg_node = node_load($reg_nid);
+    global $user;
+    if ($user->uid != $reg_node->uid) {
+      drupal_set_message(t('You cannot edit the tally for this school because you did not register it.'), 'error');
+      return '';
+    }
+  }
+  // is tallying open?
+  if (! _ogevents_is_tallying_open($event_nid)) {
+    drupal_set_message(t('Challenge is not yet open for tallying.'), 'error');
+    return '';
+  }
+
+
+
+  $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
+  $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
+         . 'You can update the trip log weekly or just enter your totals at the end of the month in the last row.',
+           array('%school-name' => $school_node->title));
+
+  //$output .= drupal_get_form('ogevents_edit_reg_form', $rid); //from old day-tally code.
+
+  $header = array('Walk', 'Bike', 'Other');
+  $rows = array();
+  $results = _ogevents_get_results($school_nid, $event_nid);
+  $bike = $results['bike_trips'];
+  $walk = $results['walk_trips'];
+  $other = $results['other_trips'];
+  $rows[] = array($walk, $bike, $other);
+
+  $tally_box = '<h3>' . t('Weekly Totals') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid);
+  $month_box = '<h3>' . t('Monthly Totals') . '</h3>' . theme('table', $header, $rows) . drupal_get_form('ogevents_participation_form', $event_nid, $gid);
+
+  $output .= '<div id="ogevents-tally-control">';
+  $output .= '<div id="ogevents-tallybox">' . $tally_box . '</div>';
+  $output .= '<div id="ogevents-monthbox">' . $month_box . '</div>';
+  $output .= '</div>';
+
+  $output .= '<div class="ogevents-after-form">';
+  $output .= '<p>' . l(t('Return to My Schools'), "dashboard") . '</p>';
+  $output .= '<p>' . l(t('Compare your progress to other schools'), "event/$event_nid/results") . '</p>';
+  $output .= '</div>';
+
+  // output date - TODO
+
+  return $output;
+}
+
+/**
+ * Page for confirmation after submitting monthly tally.
+ */
+function ogevents_page_tally_thanks($event_nid, $gid) {
+  $output .= '<p>';
+  $output = t('Thanks for submitting your Walk + Bike Challenge final results!');
+  $output .= '</p>';
+  $output .= '<p>';
+  $output .= t('If you need to you can still <a href="@tally-page">go back</a> and change them. ',
+             array('@tally-page' => url("event/$event_nid/tally/$gid")));
+  $output .= t('Just make sure to submit your results again when finished.');
+  $output .= '</p>';
+
+  $output .= '<p>';
+  $output .= t('Go back to <a href="@dashboard-page">My Schools</a> or ' .
+             '<a href="@results-page">see Challenge results</a> for all schools.',
+             array('@dashboard-page' => url('dashboard'), '@results-page' => url("event/$event_nid/results")));
+  $output .= '</p>';
+
+  return $output;
+}
+
+/**
+ * Return a form which gets trip counts for each week.
+ */
+ /*
+function ogevents_month_tally_form($form_state, $event_nid, $gid) {
+  $form = array();
+
+  // record participation data
+  $reg_nid = _ogevents_get_registration($event_nid, $gid);
+  if (!$reg_nid) {
+    drupal_set_message("No registration was found for the given school & event ('$gid' and '$event_nid').", 'error');
+    return;
+  }
+
+  $form['week'] = array(
+    '#type' => 'markup',
+    '#value' => '<h3>Weekly Totals (optional)</h3>',
+    );
+
+  _ogevents_populate_trips_form($form, $event_nid, $gid);
+
+  $form['month'] = array(
+    '#type' => 'markup',
+    '#value' => '<h3>Monthly Totals (required)</h3>',
+    );
+
+  _ogevents_populate_participation_form($form, $reg_nid, $event_nid, $gid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Update',
+      );
+
+  return $form;
+}
+*/
+
+/**
+ * theme a Drupal fieldset.
+ * Copied from core, with only difference is wrapping legend in a span for CSS positioning.
+ * XXX BUG TODO: For unknown reason, Drupal is calling the default fieldset theme function
+ * and then calling this function, so we get a fieldset within a fieldset, so for the time
+ * being I will just move this theme hook to the walknbike theme and look at possible solutions later.
+ * Ideas for poss. solutions: 1) create custom #cssified_fieldset form widget which includes
+ * the span. 2) Run Drupal in debugger to trace what is happening. 3) Call this theme function
+ * from inside form rendering function. (theme_ogevents_month_tally_form).
+ *
+ * theme_ogevents_fieldset() ...
+ */
+
+/**
+ * Special theme function for monthly tallying.
+ */
+ /*
+function theme_ogevents_month_tally_form($form) {
+  $output .= drupal_render($form);
+  return $output;
+}
+*/
+
+/**
+ * Create or update a triptally node.
+ * @param gid The school nid.
+ * @param week The week we're updating
+ * @param bike Number of trips by bike.
+ * @param walk Number of trips on foot.
+ * @parm other Number of other trips.
+ */
+function _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $other) {
+  // look for the node
+  $tally_nid = _ogevents_get_nid_triptally($event_nid, $gid, $week);
+
+  if ($tally_nid) { // use existing node if exists
+    $tally_node = node_load($tally_nid);
+    _dm("Updating node ($tally_nid) for bike/walk/other values ($bike/$walk/$other) " .
+                       "for event/school/week ($event_nid,$gid,$week)."); //DEBUG
+  }
+  else { // create new node
+    if ($bike == 0 && $walk == 0 && $other == 0) { // don't save useless nodes.
+      return;
+    }
+
+    _dm("Creating new node for bike/walk/other values ($bike/$walk/$other) " .
+                       "for event/school/week ($event_nid,$gid,$week)."); //DEBUG
+
+    $is_new_node = TRUE;
+
+    // add node properties
+    $tally_node = (object) NULL;
+    $tally_node->type = 'triptally';
+    $tally_node->title = 'Total Trips';
+    $tally_node->uid = $GLOBALS['user']->uid;
+    $tally_node->created = strtotime("now");
+    $tally_node->changed = strtotime("now");
+    $tally_node->status = 1;
+    $tally_node->comment = 0;
+    $tally_node->promote = 0;
+    $tally_node->moderate = 0;
+    $tally_node->sticky = 0;
+
+    $tally_node->field_eventid[0]['nid'] = $event_nid;
+  }
+
+  // update relevant node bits from function arguments.
+  $tally_node->field_week[0]['value'] = $week;
+  $tally_node->field_biketrips[0]['value'] = $bike;
+  $tally_node->field_walktrips[0]['value'] = $walk;
+  $tally_node->field_othertrips[0]['value'] = $other;
+
+  // save.
+  node_save($tally_node);
+  if (! $tally_node->nid) {
+    drupal_set_message("Error saving bike/walk/other values ($bike/$walk/$other) " .
+                       "for event/school/week ($event_nid,$gid,$week).", 'error');
+  }
+
+  // First time we save the node we need to put in the Org. Group ancestry table too.
+  // Note - if we ever get rid of the OG bits we could just store groupid as a node field. (TODO?)
+  if ($is_new_node) {
+    $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
+    db_query($sql, $tally_node->nid, $gid);
+  }
+
+  return;
+}
+
+/**
+ * Submit month participation totals.
+ */
+function ogevents_participation_form_submit($form, &$form_state) {
+  _ogevents_save_participation_form($form_state);
+}
+
+function _ogevents_save_participation_form(&$form_state) {
+  _dm("form_state: "); //DEBUG
+  _dpm($form_state); //DEBUG
+
+  $event_nid = $form_state['values']['event'];
+  $school_nid = $form_state['values']['school'];
+  $reg_nid = $form_state['values']['regnode']; // the registration for the previously given school+event
+  $reg_node = node_load($reg_nid);
+
+  $reg_node->field_participants[0]['value'] = $form_state['values']['participants'];
+  $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
+  $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
+  $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
+
+  //DEBUG
+  _dm("reg node after recording: ");
+  _dpm($reg_node);
+
+  node_save($reg_node);
+
+  //DEBUG
+  _dm("reg node after saving: ");
+  _dpm($reg_node);
+
+  $form_state['redirect'] = "event/$event_nid/thanks/$school_nid";
+}
+
+
+
+/**
+ * Submit tally for the month.
+ */
+function ogevents_tally_form_submit($form, &$form_state) {
+
+  _dm('tally_form_submit...');
+  _dpm($form_state);
+
+  $event_nid = $form_state['values']['event'];
+  $gid = $form_state['values']['gid'];
+
+  // for each week, look for info and pass to tally-submit function
+  foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+    _ogevents_update_triptally($event_nid, $gid, $week,
+      $form_state['values']["biketrips$week"],
+      $form_state['values']["walktrips$week"],
+      $form_state['values']["othertrips$week"]);
+  }
+}
+
+
+/**
+ * Submit tally for the month and participation info.
+ */
+/*
+function ogevents_month_tally_form_submit($form, &$form_state) {
+
+  _dm('form_state on submit: '); //DEBUG
+  _dpm($form_state);
+
+  // save participation bits
+  _ogevents_save_participation_form($form_state);
+
+  ogevents_tally_form_submit($form, $form_state);
+  return;
+}
+*/
+
+/**
+ * Find the node id of the triptally for the given school, event, week.
+ * @param $event_nid The node id of the event we're interested in.
+ * @param $gid The school (group) node ID we're interested in.
+ * @param $week The week number (1-5) we want.
+ * @return nid for desired triptally node.
+ */
+function _ogevents_get_nid_triptally($event_nid, $gid, $week) {
+  $query = "SELECT t.nid FROM {content_type_triptally} t
+  JOIN {og_ancestry} oga ON t.nid = oga.nid
+  JOIN {content_field_eventid} e ON t.vid = e.vid
+  WHERE oga.group_nid = %d AND e.field_eventid_nid = %d AND t.field_week_value = %d";
+  // assert - there is only one tally per event/group/week
+  return db_result(db_query($query, $gid, $event_nid, $week));
+}
+
+
+/**
+ * Returns node id of registration node for given event and school (gid).
+ */
+function _ogevents_get_registration($event_nid, $gid) {
+  $query = "SELECT r.nid
+            FROM {og_ancestry} oga
+            JOIN {content_type_registration} r ON oga.nid = r.nid
+            JOIN {content_field_eventid} e ON r.vid = e.vid
+            JOIN {node} n ON n.vid = r.vid
+            WHERE n.type = 'registration'
+            AND e.field_eventid_nid = %d AND oga.group_nid = %d";
+  // assert: there can only be one registration per school+event
+  return db_result(db_query($query, $event_nid, $gid));
+}
+
+
+
+
+
+
+/**
+ * A form for recording each week's results for a month.
+ */
+function ogevents_tally_form($form_state, $event_nid, $gid) {
+
+  $form = array();
+
+  $form['trips'] = array(
+      '#type' => 'fieldset',
+      //'#title' => t('Weekly Totals (optional)'),
+      '#attributes' => array('class' => 'ogevents-tally'),
+      //'#collapsible' => FALSE,
+      );
+
+  foreach (range(1,OGEVENTS_NUM_WEEKS) as $week) {
+
+    $default_bike = $default_walk = $default_other = 0;
+
+    $tally_nid = _ogevents_get_nid_triptally($event_nid, $gid, $week);
+    if ($tally_nid) {
+      $tally_node = node_load($tally_nid);
+      // assert tally_node is valid result (s/be, since t_nid is valid).
+      $default_bike = $tally_node->field_biketrips[0]['value'];
+      $default_walk = $tally_node->field_walktrips[0]['value'];
+      $default_other = $tally_node->field_othertrips[0]['value'];
+    }
+
+
+    // classes needed for CSS grid trick
+    $classes = array('ogevents-hack');
+    $classes[] = ($week == 1) ? 'fieldset-header' : 'fieldset-body';
+    $classes[] = ($week & 1) ? 'odd' : 'even';
+
+    $form['trips']["week$week"] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Week !week!or-month',
+                      array('!week' => $week,
+                            '!or-month' =>
+                              $week == OGEVENTS_NUM_WEEKS ? ' or Month Total' : '',
+                           )),
+        '#attributes' => array('class' => implode(' ', $classes)),
+        );
+
+
+    //$form['trips']["week$week"]["name"] = array('#value' => "<div class=\"foo\">Week $week</div>");
+
+    $form['trips']["week$week"]["walktrips$week"] = array(
+        '#type' => 'textfield',
+        '#title' => t('Walk'),
+        '#default_value' => $default_walk,
+        '#size' => 5,
+        '#maxlength' => 3,
+        '#attributes' => array('class' => 'ogevents-hack'),
+        //'#required' => TRUE,
+        );
+
+    $form['trips']["week$week"]["biketrips$week"] = array(
+        '#type' => 'textfield',
+        '#title' => t('Bike'),
+        '#default_value' => $default_bike,
+        '#size' => 5,
+        '#maxlength' => 3,
+        '#attributes' => array('class' => 'ogevents-hack'),
+        //'#required' => TRUE,
+        );
+
+    $form['trips']["week$week"]["othertrips$week"] = array(
+        '#type' => 'textfield',
+        '#title' => t('Other'),
+        '#default_value' => $default_other,
+        '#size' => 5,
+        '#maxlength' => 3,
+        '#attributes' => array('class' => 'ogevents-hack'),
+        //'#required' => TRUE,
+        );
+  }
+
+  $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
+  $form['gid'] = array('#type' => 'hidden', '#value' => $gid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Update',
+      );
+
+  return $form;
+}
+
+
+
+
+
+//function _ogevents_populate_participation_form(&$form, $reg_nid, $event_nid = NULL, $school_nid = NULL) {
+function ogevents_participation_form($form_state, $event_nid, $school_nid) {
+  $form = array();
+
+  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_node = node_load($reg_nid);
+  _dm("reg_nid in populate_participation_form: $reg_nid"); //DEBUG
+  _dm("reg_node in populate_participation_form: <pre>" . print_r($reg_node, TRUE) . "</pre>");
+
+  $studentbody = $reg_node->field_studentbody[0]['value'];
+  $participants = $reg_node->field_participants[0]['value'];
+  $staff = $reg_node->field_staff[0]['value'];
+  $parents = $reg_node->field_parents[0]['value'];
+
+  if ($studentbody + $participants + $staff + $parents > 0) {
+    $collapsed = TRUE; //because fields have already been filled out.
+  }
+
+  $form['participation'] = array(
+      '#type' => 'fieldset',
+      //'#title' => t('Participation'),
+      //'#collapsible' => TRUE,
+      //'#collapsed' => $collapsed,
+      '#attributes' => array('class' => 'ogevents-participation'),
+      );
+
+/*
+  if ($event_nid) { // conditional only needed to still support old day challenge code.  change later...
+    $results = _ogevents_get_results($school_nid, $event_nid);
+    $bike = $results['bike_trips'];
+    $walk = $results['walk_trips'];
+    $other = $results['other_trips'];
+    $form['participation']['totals'] = array(
+      '#type' => 'markup',
+      '#value' => "<p>Walk: $walk, Bike: $bike, Other: $other </p>",
+      );
+  }
+  */
+
+
+
+  $form['participation']['participants'] = array(
+      '#type' => 'textfield',
+      '#title' => t('How many students participated (at least one trip) in the Challenge?'),
+      '#default_value' => $participants,
+      '#size' => 30,
+      '#maxlength' => 12,
+      '#required' => TRUE,
+      );
+
+  $form['participation']['studentbody'] = array(
+      '#type' => 'textfield',
+      '#title' => t('What is the total student body population at your school?'),
+      '#default_value' => $studentbody,
+      '#size' => 30,
+      '#maxlength' => 12,
+      '#required' => TRUE,
+      );
+
+  $form['participation']['parents'] = array(
+      '#type' => 'textfield',
+      '#title' => t('How many parents were involved?'),
+      '#default_value' => $parents,
+      '#size' => 30,
+      '#maxlength' => 12,
+      '#required' => TRUE,
+      );
+
+  $form['participation']['staff'] = array(
+      '#type' => 'textfield',
+      '#title' => t('How many teachers/staff were involved?'),
+      '#default_value' => $staff,
+      '#size' => 30,
+      '#maxlength' => 12,
+      '#required' => TRUE,
+      );
+
+  $form['regnode'] = array('#type' => 'hidden', '#value' => $reg_nid);
+  $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
+  $form['school'] = array('#type' => 'hidden', '#value' => $school_nid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Submit my Challenge results',
+      );
+
+  return $form;
+}
+
+
+function ogevents_edit_reg_form($form_state, $reg_nid) {
+
+  $form = array();
+  _ogevents_populate_participation_form($form, $reg_nid);
+
+  $form['submit'] = array(
+      '#type' => 'submit',
+      '#value' => 'Submit',
+      );
+
+  return $form;
+}
+
+function ogevents_edit_reg_form_submit($form, &$form_state) {
+  _ogevents_save_participation_form($form_state);
+  $form_state['redirect'] = 'og/my';
+  drupal_set_message("Your trips have been added");
+}
+

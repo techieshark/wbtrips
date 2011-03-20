@@ -1,0 +1,122 @@
+Script started on Sat 26 Feb 2011 08:42:39 PM PST
+]0;shark@hyperion: /var/www/walknbike/wbtesting/sites/all/modules/ogeventsshark@hyperion:/var/www/walknbike/wbtesting/sites/all/modules/ogevents$ drush -u root @wb.test s[Kdelete_schools.php
+The drush command 'delete_schools.php' could not be found.                                                                                                           [31;40m[1m[error][0m
+]0;shark@hyperion: /var/www/walknbike/wbtesting/sites/all/modules/ogeventsshark@hyperion:/var/www/walknbike/wbtesting/sites/all/modules/ogevents$ drush -u root @wb.test delete_schools.phpsdelete_schools.phpcdelete_schools.phprdelete_schools.php delete_schools.php
+Nodes to delete: 58,52,1025,60,159,145,334,123,333,920,932,938,49,55,882,63,69,70,76,260,143,174,188,226,236,934,936,256,205,197,241,198,224,98,666,83,909,96,719,204,65,258,59
+58 Title: my school name Location: 555 test st portland OR 97214
+52 Title: Fake School Location: Fake street Portland OR 97232
+1025 Title: Margaux's Test School Location: 233 NW 5th Ave Portland OR 97209
+60 Title: Safe Routes test Location: 1120 SW 5th Ave Portland OR 97204
+159 Title: Safe Routes to School Location: 1120 SW 5th Ave  Portland   97211
+145 Title: sdfegd Location: dfg fdgdfgdfg OR dfg
+334 Title: University of Arkansas, Fayetteville Location: 365 N. McIlroy Ave. Fayetteville AR 72701
+123 Title: Westwood middle School Location: 700 Apollo DR Danville VA 24540
+333 Title: John Baldwin Location: 741 Brookside Danville CA 94526
+920 Title: The Derryfield School Location: 2108 River Road Manchester NH 03104
+932 Title: Randall School Location: 1802 Regent Street Madison WI 53726
+938 Title: Cardiff Elementary Location: 1888 Montgomery Ave.  Cardiff CA 92007
+49 Title: Walker Elementary  Location: 364 Walker Ave Ashland  97520
+55 Title: Willow Wind CLC Location: 1497 East Main st. Ashland OR 97520
+882 Title: Alameda Elementary School Location: NE Fremont Street Portland  OR 97212
+63 Title: Path Finder Program Location: 2120 Bailey Hill Road Eugene OR 97405
+69 Title: Washington Elementary Location: 610 S. Peach Street Medford OR 97501
+70 Title: Salem Heights Elementary Location: 3495 Liberty Rd. S Salem OR 97302
+76 Title: Sisters Middle School Location: 15200 McKenzie High School Sisters OR 97759
+260 Title: Merlo Station High School Location: 1841 NW Merlo Rd beaverton  OR 97006
+143 Title: Abernethy Elementary Location: 2421 SE Orange Portland OR 97214
+174 Title: James John Elementary Location: 7439 N Charleston  Portland OR 97203
+188 Title: Byrom Elementary Location: 21800 SW 91st Avenue Tualatin OR 97062
+226 Title: findley elementary school Location: 4155 NW Saltzman Rd Portland OR 97229
+236 Title: Helman Elementary Location: 705 Helman St. Ashland OR 97520
+934 Title: Franklin Elementary School Location: 305 West Lakeside Street Madison WI 53715
+936 Title: Franklin Elementary School Location: 305 West Lakeside Street Madison WI 53715
+256 Title: Beach Elementary Location: 1710 N Humboldt Portland OR 97217
+205 Title: Beverly Cleary Hollyrood Campus Location: 3560 NE Hollyrood Ct. Portland OR 97212
+197 Title: Hoover Elementary Location: 3838 NW Walnut Blvd Corvallis OR 97330
+241 Title: Powell Valley Location: 4825 SE Powell Valley Rd. Gresham OR 97080
+198 Title: Richmond Elementary Location: 2276 SE 41st Avenue Portland OR 97214
+224 Title: rieke elementary Location: 1405 SW vermont portland OR 97219
+98 Title: Sexton Mt Location: Sextion Mt Rd Beaverton OR 97008
+666 Title: Shasta Elementary School Location: 1951 Madison St. Klamath Falls OR 97603
+83 Title: St. Paul Elementary Location: 20449 Main Street NE  St. Paul OR 97137
+909 Title: Stephenson Elementary School Location: 2627 SW Stephenson St Portland OR 97219
+96 Title: Woodstock ES Location: 5601 SE 50th Ave Portland OR 97206
+719 Title: Findley Elementary Location: 4155 NW Saltzman Rd Portland OR 97229
+204 Title: llewellen elementary school Location: 6301 SE 14th portland OR 97202
+65 Title: llewellyn elementary Location: 6301 Southeast 14th Avenue  Portland OR 97202
+258 Title: Portland Village School Location: 7654 N. Delaware Ave. Portland OR 97214
+59 Title: Portland Village School, A Charter School Location: 7654 N Deleware Portland OR 97217
+
+
+School my school name has been deleted.                                                                                                                              [1;32;40m[1m[status][0m
+School Fake School has been deleted.                                                                                                                                 [1;32;40m[1m[status][0m
+Registration Test Challenge Event Registration has been deleted.                                                                                                     [1;32;40m[1m[status][0m
+Deleted registration: 1026                                                                                                                                           [1;32;40m[1m[status][0m
+School Margaux&#039;s Test School has been deleted.                                                                                                                  [1;32;40m[1m[status][0m
+School Safe Routes test has been deleted.                                                                                                                            [1;32;40m[1m[status][0m
+School Safe Routes to School has been deleted.                                                                                                                       [1;32;40m[1m[status][0m
+School sdfegd has been deleted.                                                                                                                                      [1;32;40m[1m[status][0m
+School University of Arkansas, Fayetteville has been deleted.                                                                                                        [1;32;40m[1m[status][0m
+School Westwood middle School has been deleted.                                                                                                                      [1;32;40m[1m[status][0m
+School John Baldwin has been deleted.                                                                                                                                [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 921                                                                                                                                            [1;32;40m[1m[status][0m
+School The Derryfield School has been deleted.                                                                                                                       [1;32;40m[1m[status][0m
+School Randall School has been deleted.                                                                                                                              [1;32;40m[1m[status][0m
+School Cardiff Elementary has been deleted.                                                                                                                          [1;32;40m[1m[status][0m
+School Walker Elementary  has been deleted.                                                                                                                          [1;32;40m[1m[status][0m
+School Willow Wind CLC has been deleted.                                                                                                                             [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 883                                                                                                                                            [1;32;40m[1m[status][0m
+Registration Test Challenge Event Registration has been deleted.                                                                                                     [1;32;40m[1m[status][0m
+Deleted registration: 1048                                                                                                                                           [1;32;40m[1m[status][0m
+School Alameda Elementary School has been deleted.                                                                                                                   [1;32;40m[1m[status][0m
+School Path Finder Program has been deleted.                                                                                                                         [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 855                                                                                                                                            [1;32;40m[1m[status][0m
+School Washington Elementary has been deleted.                                                                                                                       [1;32;40m[1m[status][0m
+School Salem Heights Elementary has been deleted.                                                                                                                    [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 736                                                                                                                                            [1;32;40m[1m[status][0m
+School Sisters Middle School has been deleted.                                                                                                                       [1;32;40m[1m[status][0m
+School Merlo Station High School has been deleted.                                                                                                                   [1;32;40m[1m[status][0m
+School Abernethy Elementary has been deleted.                                                                                                                        [1;32;40m[1m[status][0m
+School James John Elementary has been deleted.                                                                                                                       [1;32;40m[1m[status][0m
+School Byrom Elementary has been deleted.                                                                                                                            [1;32;40m[1m[status][0m
+School findley elementary school has been deleted.                                                                                                                   [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 676                                                                                                                                            [1;32;40m[1m[status][0m
+School Helman Elementary has been deleted.                                                                                                                           [1;32;40m[1m[status][0m
+School Franklin Elementary School has been deleted.                                                                                                                  [1;32;40m[1m[status][0m
+School Franklin Elementary School has been deleted.                                                                                                                  [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 685                                                                                                                                            [1;32;40m[1m[status][0m
+School Beach Elementary has been deleted.                                                                                                                            [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 810                                                                                                                                            [1;32;40m[1m[status][0m
+School Beverly Cleary Hollyrood Campus has been deleted.                                                                                                             [1;32;40m[1m[status][0m
+School Hoover Elementary has been deleted.                                                                                                                           [1;32;40m[1m[status][0m
+School Powell Valley has been deleted.                                                                                                                               [1;32;40m[1m[status][0m
+School Richmond Elementary has been deleted.                                                                                                                         [1;32;40m[1m[status][0m
+School rieke elementary has been deleted.                                                                                                                            [1;32;40m[1m[status][0m
+School Sexton Mt has been deleted.                                                                                                                                   [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 667                                                                                                                                            [1;32;40m[1m[status][0m
+School Shasta Elementary School has been deleted.                                                                                                                    [1;32;40m[1m[status][0m
+School St. Paul Elementary has been deleted.                                                                                                                         [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 910                                                                                                                                            [1;32;40m[1m[status][0m
+School Stephenson Elementary School has been deleted.                                                                                                                [1;32;40m[1m[status][0m
+School Woodstock ES has been deleted.                                                                                                                                [1;32;40m[1m[status][0m
+School Findley Elementary has been deleted.                                                                                                                          [1;32;40m[1m[status][0m
+School llewellen elementary school has been deleted.                                                                                                                 [1;32;40m[1m[status][0m
+Registration Walk + Bike Challenge 2011 Registration has been deleted.                                                                                               [1;32;40m[1m[status][0m
+Deleted registration: 1015                                                                                                                                           [1;32;40m[1m[status][0m
+School llewellyn elementary has been deleted.                                                                                                                        [1;32;40m[1m[status][0m
+Registration Walk + Bike to School Day Registration has been deleted.                                                                                                [1;32;40m[1m[status][0m
+Deleted registration: 803                                                                                                                                            [1;32;40m[1m[status][0m
+School Portland Village School has been deleted.                                                                                                                     [1;32;40m[1m[status][0m
+School Portland Village School, A Charter School has been deleted.                                                                                                   [1;32;40m[1m[status][0m
+]0;shark@hyperion: /var/www/walknbike/wbtesting/sites/all/modules/ogeventsshark@hyperion:/var/www/walknbike/wbtesting/sites/all/modules/ogevents$ exit
+
+Script done on Sat 26 Feb 2011 08:43:27 PM PST

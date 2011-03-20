@@ -1,0 +1,5 @@
+; $Id$
+name = Organic Group Events
+description = Allows groups to register for events
+core = 6.x
+dependencies[] = og
