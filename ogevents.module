@@ -237,7 +237,7 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   switch ($op) {
     case 'insert':
       if ($node->type == 'school') {
-        $newNode = _get_blank_regnode();
+        $newNode = _ogevents_get_blank_regnode();
 
         $event_nid = $_GET['event'];
         $newNode->field_eventid[0]['nid'] = $event_nid;
