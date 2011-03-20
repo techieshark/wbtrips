@@ -120,8 +120,8 @@ function ogevents_init() {
  */
 function ogevents_menu() {
   $items = array();
-  $event_nids = _get_current_reg_events();
-  $tlyids = _get_current_tally_events();
+  $event_nids = _ogevents_get_current_reg_events();
+  $tlyids = _ogevents_get_current_tally_events();
 
   $items['dashboard'] = array(
         'title' => 'My Schools',
@@ -406,7 +406,7 @@ function _ogevents_get_results($school_nid, $event_nid) {
  */
 function _ogevents_get_registered_schools($event_nids = NULL) {
   if (empty($event_nids)) { // look for schools registered for any event
-    $events = _get_current_reg_events();
+    $events = _ogevents_get_current_reg_events();
   } else if (is_array($event_nids)) {
     $events = $event_nids;
   } else {
@@ -476,7 +476,7 @@ function _ogevents_get_tally_start($event) {
  *
  * @return Array of node IDs.
  */
-function _get_current_events($field) {
+function _ogevents_get_current_events($field) {
   $result = db_query("SELECT n.nid FROM {node} n WHERE n.type = 'event' and n.status = 1");
   $nodes = array();
   while ($row = db_fetch_object($result)) {
@@ -506,22 +506,22 @@ function _get_current_events($field) {
 /**
  * Get an array of all published Events for which registration is open.
  */
-function _get_current_reg_events() {
-  return _get_current_events("field_regdates");
+function _ogevents_get_current_reg_events() {
+  return _ogevents_get_current_events("field_regdates");
 }
 
 /**
  * Get an array of all published Events which are now in their tallying period.
  */
-function _get_current_tally_events() {
-  return _get_current_events("field_tallydates");
+function _ogevents_get_current_tally_events() {
+  return _ogevents_get_current_events("field_tallydates");
 }
 
 
 /**
  * Return the title for the node with the given nid
  */
-function _get_node_title($nid) {
+function _ogevents_get_node_title($nid) {
   $node = node_load($nid);
   return $node->title;
 }
@@ -530,7 +530,7 @@ function _get_node_title($nid) {
 /** Return a template registration node object.
  *  Everything but field_eventid[0]['nid'] is filled in
  */
-function _get_blank_regnode() {
+function _ogevents_get_blank_regnode() {
   $newNode = (object) NULL;
   $newNode->type = 'registration';
   $newNode->title = 'registration';
@@ -554,8 +554,8 @@ function _get_blank_regnode() {
 /**
  * Remove unnecessary elements (mostly OG stuff) from School node-add form, plus other cleanup.
  */
-function _remove_og_extras(&$form) {
-  $form['locations'][0]['province']['#pre_render'][] = 'select_province';
+function _ogevents_cleanup_school_form(&$form) {
+  $form['locations'][0]['province']['#pre_render'][] = '_ogevents_cleanup_select_province';
 
   $form['og_private']['#type'] = 'hidden';
   $form['og_description']['#required'] = FALSE;
@@ -570,7 +570,7 @@ function _remove_og_extras(&$form) {
 /**
  * Turn states into a drop-down, and only show OR/WA
  */
-function select_province($element) {
+function _ogevents_cleanup_select_province($element) {
   /* If we want all states shown, uncomment this.  But for now we'll just hard-code OR/WA as options.
   $provinces = location_get_provinces('us');
   if (!empty($provinces)) {
@@ -591,7 +591,7 @@ function select_province($element) {
  */
 function ogevents_form_school_node_form_alter(&$form, &$form_state) {
 
-  $form['#after_build'][] = '_remove_og_extras';
+  $form['#after_build'][] = '_ogevents_cleanup_school_form';
   $form['#submit'][] = 'ogevents_school_form_submit';
   $form['#validate'][] = 'ogevents_form_school_prevent_duplicates_validate';
 

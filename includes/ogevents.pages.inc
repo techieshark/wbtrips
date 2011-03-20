@@ -155,7 +155,7 @@ function _ogevents_get_my_registered_schools($event_nid) {
  * TODO !! sort by tally start date, sooner -> later (in another funct.)
  */
 function _ogevents_get_open_events() {
-  return array_unique(array_merge(_get_current_reg_events(), _get_current_tally_events()));
+  return array_unique(array_merge(_ogevents_get_current_reg_events(), _ogevents_get_current_tally_events()));
 }
 
 
@@ -243,8 +243,8 @@ function ogevents_page_results($event_nid) {
 }
 
 function _ogevents_get_results_page_title($event_nid) {
-  if (count(_get_current_reg_events()) > 1) {
-    return t('Results for @event', array('@event' => _get_node_title($event_nid)));
+  if (count(_ogevents_get_current_reg_events()) > 1) {
+    return t('Results for @event', array('@event' => _ogevents_get_node_title($event_nid)));
   }
   else { // Keep things simple if only one event running
     return t('See Challenge results');
@@ -496,7 +496,7 @@ function ogevents_page_register($event_nid) {
 
 /** Provides title for the registration page. */
 function _ogevents_get_reg_page_title($nid) {
-  if (count(_get_current_reg_events()) > 1) {
+  if (count(_ogevents_get_current_reg_events()) > 1) {
     $node = node_load($nid);
     $title = t("Register your school for $node->title");
   }
@@ -579,7 +579,7 @@ function ogevents_register_form_validate($form, &$form_state) {
  * the school which had been selected.
  */
 function ogevents_register_form_submit($form, &$form_state) {
-  $newNode = _get_blank_regnode();
+  $newNode = _ogevents_get_blank_regnode();
   $newNode->field_eventid[0]['nid'] = $eid = $form_state['values']['event']; //event nid to signup for
 
   $gid = $form_state['values']['og_register']; // nid of selected school being registered
