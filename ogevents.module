@@ -127,7 +127,7 @@ function ogevents_menu() {
         'description' => 'View and record results',
         'page callback' => 'ogevents_page_dashboard',
         'access arguments' => array('access ogevents content'),
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
 
   $items['duplicates'] = array(
@@ -136,7 +136,7 @@ function ogevents_menu() {
         'page callback' => 'ogevents_page_duplicates',
         'access arguments' => array('access ogevents reports'),
         'type' => MENU_CALLBACK, //TODO - we might want this to be an actual menu item for admins
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
 
   foreach ($event_nids as &$event_nid) {
@@ -146,7 +146,7 @@ function ogevents_menu() {
         'page callback' => 'ogevents_page_register',
         'page arguments' => array(1),
         'access callback' => TRUE,
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
 
     $items["event/$event_nid/register/csv"] = array(
@@ -156,7 +156,7 @@ function ogevents_menu() {
         'page arguments' => array(1),
         'access arguments' => array('access ogevents reports'),
         'type' => MENU_CALLBACK,
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
 
     $items["event/$event_nid/results"] = array(
@@ -166,7 +166,7 @@ function ogevents_menu() {
         'page callback' => 'ogevents_page_results',
         'page arguments' => array(1),
         'access callback' => TRUE,
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
 
     $items["event/$event_nid/results/csv"] = array(
@@ -176,7 +176,7 @@ function ogevents_menu() {
         'page arguments' => array(1),
         'access callback' => TRUE,
         'type' => MENU_CALLBACK,
-        'file' => 'includes/ogevents.pages.inc',
+        'file' => 'ogevents.pages.inc',
         );
   }
 
@@ -187,7 +187,7 @@ function ogevents_menu() {
         'page arguments' => array(1,3),
         'access arguments' => array('access ogevents content'),
         'type' => MENU_CALLBACK,
-        'file' => 'includes/ogevents.tally.inc',
+        'file' => 'ogevents.tally.inc',
         );
 
     $items["event/$tly/thanks/%"] = array(
@@ -196,7 +196,7 @@ function ogevents_menu() {
         'page arguments' => array(1,3),
         'access callback' => TRUE,
         'type' => MENU_CALLBACK,
-        'file' => 'includes/ogevents.tally.inc',
+        'file' => 'ogevents.tally.inc',
         );
   }
 
