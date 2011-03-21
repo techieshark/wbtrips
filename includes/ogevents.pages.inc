@@ -79,7 +79,7 @@ function ogevents_page_dashboard() {
           array_push($row, $results['walk_trips'],
                            $results['bike_trips'],
                            $results['other_trips'],
-                           _ogevents_percentify($results['student_percentage']) . '%');
+                           round($results['student_percentage'],1) . '%');
         }
         else {
           // tallying is not open (yet) but registration must be,
@@ -361,7 +361,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
       $students = sprintf("%d of %d (%s%%)",
                         $results['participants'],
                         $results['studentbody'],
-                        _ogevents_percentify($results['student_percentage']));
+                        round($results['student_percentage'],1));
       array_push($row, $students);
     }
 

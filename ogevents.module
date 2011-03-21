@@ -375,15 +375,6 @@ function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
 
 
 /**
- * Returns number in float format with no trailing zeros.
- */
-function _ogevents_percentify($num) {
-  if ($num == 0) return 0; //handle special case so we don't return an empty string.
-  return trim(sprintf("%.1f", $num), ".0");
-}
-
-
-/**
  * Return an array of results for the given school and event
  */
 function _ogevents_get_results($school_nid, $event_nid) {
