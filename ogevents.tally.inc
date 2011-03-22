@@ -64,7 +64,7 @@ function ogevents_page_tally($event_nid, $gid) {
   $output .= '</div>';
 
   $output .= '<p>' . l(t('Return to My Schools'), "dashboard") . '<br/>';
-  $output .= '<p>' . l(t('Compare your progress to other schools'), "event/$event_nid/results") . '</p>';
+  $output .= l(t('Compare your progress to other schools'), "event/$event_nid/results") . '</p>';
 
   // output date - TODO
 
@@ -99,19 +99,14 @@ function ogevents_page_tally_thanks($event_nid, $gid) {
  */
 function ogevents_tally_form($form_state, $event_nid, $gid) {
 
-  $form = array();
-
   $form['trips'] = array(
-      '#type' => 'fieldset',
-      //'#title' => t('Weekly Totals (optional)'),
-      '#attributes' => array('class' => 'ogevents-tally'),
-      //'#collapsible' => FALSE,
-      );
+      '#theme' => 'ogevents_tally_table',
+  );
 
   foreach (range(1,OGEVENTS_NUM_WEEKS) as $week) {
 
+    // set form defaults
     $default_bike = $default_walk = $default_other = 0;
-
     $tally_nid = _ogevents_get_nid_triptally($event_nid, $gid, $week);
     if ($tally_nid) {
       $tally_node = node_load($tally_nid);
@@ -121,49 +116,25 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
       $default_other = $tally_node->field_othertrips[0]['value'];
     }
 
-
-    // classes needed for CSS grid trick
-    $classes = array('ogevents-hack');
-    $classes[] = ($week == 1) ? 'fieldset-header' : 'fieldset-body';
-    $classes[] = ($week & 1) ? 'odd' : 'even';
-
-    $form['trips']["week$week"] = array(
-        '#type' => 'fieldset',
-        '#title' => t('Week !week', array('!week' => $week)),
-        '#attributes' => array('class' => implode(' ', $classes)),
-        );
-
-
-    //$form['trips']["week$week"]["name"] = array('#value' => "<div class=\"foo\">Week $week</div>");
-
-    $form['trips']["week$week"]["walktrips$week"] = array(
+    $form['trips']["Week $week"]["walk"] = array(
         '#type' => 'textfield',
-        '#title' => t('Walk'),
         '#default_value' => $default_walk,
-        '#size' => 5,
-        '#maxlength' => 3,
-        '#attributes' => array('class' => 'ogevents-hack'),
-        //'#required' => TRUE,
+        '#size' => 4,
+        '#maxlength' => 4,
         );
 
-    $form['trips']["week$week"]["biketrips$week"] = array(
+    $form['trips']["Week $week"]["bike"] = array(
         '#type' => 'textfield',
-        '#title' => t('Bike'),
         '#default_value' => $default_bike,
-        '#size' => 5,
-        '#maxlength' => 3,
-        '#attributes' => array('class' => 'ogevents-hack'),
-        //'#required' => TRUE,
+        '#size' => 4,
+        '#maxlength' => 4,
         );
 
-    $form['trips']["week$week"]["othertrips$week"] = array(
+    $form['trips']["Week $week"]["other"] = array(
         '#type' => 'textfield',
-        '#title' => t('Other'),
         '#default_value' => $default_other,
-        '#size' => 5,
-        '#maxlength' => 3,
-        '#attributes' => array('class' => 'ogevents-hack'),
-        //'#required' => TRUE,
+        '#size' => 4,
+        '#maxlength' => 4,
         );
   }
 
@@ -178,6 +149,38 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
   return $form;
 }
 
+/**
+ * Theme the tally table (grid of inputs).
+ */
+function theme_ogevents_tally_table($form) {
+
+  $weeks = element_children($form);
+  foreach ($weeks as $week) {
+    $rows[] = array(
+      array('data' => $week, 'header' => TRUE),
+      drupal_render($form[$week]['walk']),
+      drupal_render($form[$week]['bike']),
+      drupal_render($form[$week]['other']),
+    );
+  }
+  $rows[] = array(
+    'data' => array(
+      array('data' => t('Totals'), 'header' => TRUE), '0', '0', '0',
+    ),
+    'class' => 'sum'
+  );
+
+  $header = array(
+    array('data' => '', 'class' => 'emptyheader'),
+    array('data' => '<div><span class="logo"></span><span>' . t('Walk') . '</span></div>', 'class' => 'walk'),
+    array('data' => '<div><span class="logo"></span><span>' . t('Bike') . '</span></div>', 'class' => 'bike'),
+    array('data' => '<div><span class="logo"></span><span>' . t('Other') . '</span></div>', 'class' => 'other')
+  );
+
+  $output = theme('table', $header, $rows, array('class' => 'wb-inputgrid', 'summary' => t('Use this table to input weekly trips')));
+
+  return $output;
+}
 
 /**
  * Submit tally for the month.
