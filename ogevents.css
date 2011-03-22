@@ -1,3 +1,14 @@
+/* These rules override the defaults provided from theme_table() */
+table.wb-inputgrid tr.even td, table.wb-inputgrid tr.odd td {
+  padding: 0px;
+}
+table.wb-inputgrid tr.even, table.wb-inputgrid tr.odd {
+  background-color: transparent;
+  border-bottom: none;
+}
+
+/* Rules to make the input grid looks right, starting with a blank <table> */
+
 table.wb-inputgrid {
 	width: auto;
 }
@@ -60,16 +71,16 @@ table.wb-inputgrid span.logo {
 	margin-right: auto;
 }
 th.walk span.logo {
-	background-image: url('./walk-black.png');
+	background-image: url('images/walk.png');
 }
 th.bike span.logo {
-	background-image: url('./bike-black.png');
+	background-image: url('images/bike.png');
 }
 th.other span.logo {
-	background-image: url('./skate-black.png');
+	background-image: url('images/skate.png');
 }
 
-tr.sum td {
+table.wb-inputgrid tr.sum td {
 	border: none;
 	border-top: 2px solid #CCC;
 	padding-left: 2px;

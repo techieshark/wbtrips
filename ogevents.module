@@ -227,6 +227,15 @@ function _ogevents_get_results_page_title($event_nid) {
   }
 }
 
+/** Implements hook_theme() */
+function ogevents_theme() {
+  return array(
+    'ogevents_tally_table' => array(
+      'arguments' => array('tally_table' => NULL),
+      'file' => 'ogevents.tally.inc',
+      ),
+  );
+}
 
 /**
  * Implementation of hook_nodeapi.
