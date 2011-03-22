@@ -129,11 +129,7 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
 
     $form['trips']["week$week"] = array(
         '#type' => 'fieldset',
-        '#title' => t('Week !week!or-month',
-                      array('!week' => $week,
-                            '!or-month' =>
-                              $week == OGEVENTS_NUM_WEEKS ? ' or Month Total' : '',
-                           )),
+        '#title' => t('Week !week', array('!week' => $week)),
         '#attributes' => array('class' => implode(' ', $classes)),
         );
 
