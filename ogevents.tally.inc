@@ -117,21 +117,23 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
       $default_other = $tally_node->field_othertrips[0]['value'];
     }
 
-    $form['trips']["Week $week"]["walk"] = array(
+    $form['trips']["Week $week"] = array("week_number" => $week);
+
+    $form['trips']["Week $week"]["walktrips$week"] = array(
         '#type' => 'textfield',
         '#default_value' => $default_walk,
         '#size' => 4,
         '#maxlength' => 4,
         );
 
-    $form['trips']["Week $week"]["bike"] = array(
+    $form['trips']["Week $week"]["biketrips$week"] = array(
         '#type' => 'textfield',
         '#default_value' => $default_bike,
         '#size' => 4,
         '#maxlength' => 4,
         );
 
-    $form['trips']["Week $week"]["other"] = array(
+    $form['trips']["Week $week"]["othertrips$week"] = array(
         '#type' => 'textfield',
         '#default_value' => $default_other,
         '#size' => 4,
@@ -157,11 +159,12 @@ function theme_ogevents_tally_table($form) {
 
   $weeks = element_children($form);
   foreach ($weeks as $week) {
+    $n = $form[$week]["week_number"];
     $rows[] = array(
       array('data' => $week, 'header' => TRUE),
-      drupal_render($form[$week]['walk']),
-      drupal_render($form[$week]['bike']),
-      drupal_render($form[$week]['other']),
+      drupal_render($form[$week]["walktrips$n"]),
+      drupal_render($form[$week]["biketrips$n"]),
+      drupal_render($form[$week]["othertrips$n"]),
     );
   }
   $rows[] = array(
