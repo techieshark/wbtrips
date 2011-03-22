@@ -68,6 +68,7 @@ function ogevents_page_tally($event_nid, $gid) {
 
   // output date - TODO
 
+  drupal_add_js(drupal_get_path('module', 'ogevents') . '/tally.js');
   return $output;
 }
 
@@ -165,7 +166,10 @@ function theme_ogevents_tally_table($form) {
   }
   $rows[] = array(
     'data' => array(
-      array('data' => t('Totals'), 'header' => TRUE), '0', '0', '0',
+      array('data' => t('Totals'), 'header' => TRUE),
+      array('data' => '0', 'class' => 'walk'),
+      array('data' => '0', 'class' => 'bike'),
+      array('data' => '0', 'class' => 'other'),
     ),
     'class' => 'sum'
   );
