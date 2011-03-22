@@ -8,7 +8,7 @@ function ogevents_sum(values) {
 }
 
 Drupal.behaviors.ogevents = function(context) {
-  
+
   // highlight on hover
   $('table.wb-inputgrid tbody tr', context).not('.sum').not('ogevents-hover-processed').addClass('ogevents-hover-processed').hover(function () {
   //$('table.wb-inputgrid tbody tr:not(.inputgrid-hover-processed)', context).addClass('inputgrid-hover-processed').not('.sum').hover(function () {
@@ -32,16 +32,29 @@ Drupal.behaviors.ogevents = function(context) {
 
   // When any input changes, recalculate sums displayed below table
   $('#ogevents-tally-form input:text:not(.ogevents-change-processed)', context).addClass('.ogevents-change-processed').change(function () {
+    ogevents_sumtable(this);
+  });
+  // And make sure to calculate on page/DOM load too:
+  $('#ogevents-tally-form input:text:not(.ogevents-ready-processed)', context).addClass('.ogevents-ready-processed').ready(function () {
+    ogevents_sumtable(this);
+  });
+};
+
+function ogevents_sumtable(item) {
     var cells, value;
     // columns are assumptions about current state of html (if src changes, change this too).
     var columns = { 'walk': 2, 'bike': 3, 'other': 4 };
 
-    if (isNaN(this.value)) {
-      alert(Drupal.t("Error: This is not a number: @input", {"@input": this.value }));
-      $(this).addClass('input-error').focus().select();
+    if (isNaN(item.value) && item.value != undefined) {
+      alert(Drupal.t("Error: This is not a number: @input", {"@input": item.value }));
+      $(item).addClass('input-error').focus().select();
+    }
+    else if (item.value < 0) {
+      alert(Drupal.t("Error: Negative numbers don't make sense: @input", {"@input": item.value }));
+      $(item).addClass('input-error').focus().select();
     }
     else {
-      $(this).removeClass('input-error');
+      $(item).removeClass('input-error');
     }
 
     $.each(columns, function (mode, colIndex) {
@@ -51,5 +64,4 @@ Drupal.behaviors.ogevents = function(context) {
       });
       $('tr.sum td.' + mode).text(ogevents_sum(cells));
     });
-  });
-};
+}
