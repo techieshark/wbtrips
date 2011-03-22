@@ -42,16 +42,8 @@ function ogevents_page_tally($event_nid, $gid) {
     return '';
   }
 
-  $header = array('Walk', 'Bike', 'Other');
-  $rows = array();
-  $results = _ogevents_get_results($school_nid, $event_nid);
-  $bike = $results['bike_trips'];
-  $walk = $results['walk_trips'];
-  $other = $results['other_trips'];
-  $rows[] = array($walk, $bike, $other);
-
   $tally_box = '<h3>' . t('1. Weekly Log (Optional)') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid);
-  $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . theme('table', $header, $rows) . drupal_get_form('ogevents_participation_form', $event_nid, $gid);
+  $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . drupal_get_form('ogevents_participation_form', $event_nid, $gid);
 
   $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
   $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
@@ -101,7 +93,7 @@ function ogevents_page_tally_thanks($event_nid, $gid) {
 function ogevents_tally_form($form_state, $event_nid, $gid) {
 
   $form['trips'] = array(
-      '#theme' => 'ogevents_tally_table',
+      '#theme' => 'ogevents_tally_table', '#attributes' => array('summary' => 'Use this table to input weekly trips'),
   );
 
   foreach (range(1,OGEVENTS_NUM_WEEKS) as $week) {
@@ -117,40 +109,39 @@ function ogevents_tally_form($form_state, $event_nid, $gid) {
       $default_other = $tally_node->field_othertrips[0]['value'];
     }
 
-    $form['trips']["Week $week"] = array("week_number" => $week);
-
-    $form['trips']["Week $week"]["walktrips$week"] = array(
-        '#type' => 'textfield',
-        '#default_value' => $default_walk,
-        '#size' => 4,
-        '#maxlength' => 4,
-        );
-
-    $form['trips']["Week $week"]["biketrips$week"] = array(
-        '#type' => 'textfield',
-        '#default_value' => $default_bike,
-        '#size' => 4,
-        '#maxlength' => 4,
-        );
-
-    $form['trips']["Week $week"]["othertrips$week"] = array(
-        '#type' => 'textfield',
-        '#default_value' => $default_other,
-        '#size' => 4,
-        '#maxlength' => 4,
-        );
+    $form['trips']["Week $week"] = array();
+    $form['trips']["Week $week"]["walktrips$week"] = _ogevents_form_input($default_walk);
+    $form['trips']["Week $week"]["biketrips$week"] = _ogevents_form_input($default_bike);
+    $form['trips']["Week $week"]["othertrips$week"] = _ogevents_form_input($default_other);
   }
 
   $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
   $form['gid'] = array('#type' => 'hidden', '#value' => $gid);
 
+  $form['update-totals'] = array(
+      '#type' => 'submit',
+      '#value' => 'Save & Copy to Results',
+       );
+
   $form['submit'] = array(
       '#type' => 'submit',
-      '#value' => 'Update',
+      '#value' => 'Save',
       );
 
   return $form;
 }
+
+
+/** Helper function that returns an input form element with the default settings. */
+function _ogevents_form_input($default) {
+  return array(
+    '#type' => 'textfield',
+    '#default_value' => $default,
+    '#size' => 4,
+    '#maxlength' => 4,
+  );
+}
+
 
 /**
  * Theme the tally table (grid of inputs).
@@ -159,13 +150,12 @@ function theme_ogevents_tally_table($form) {
 
   $weeks = element_children($form);
   foreach ($weeks as $week) {
-    $n = $form[$week]["week_number"];
-    $rows[] = array(
-      array('data' => $week, 'header' => TRUE),
-      drupal_render($form[$week]["walktrips$n"]),
-      drupal_render($form[$week]["biketrips$n"]),
-      drupal_render($form[$week]["othertrips$n"]),
-    );
+    $modes = element_children($form[$week]);
+    $row = array(array('data' => $week, 'header' => TRUE));
+    foreach ($modes as $mode) {
+      $row[] = drupal_render($form[$week][$mode]);
+    }
+    $rows[] = $row;
   }
   $rows[] = array(
     'data' => array(
@@ -184,10 +174,19 @@ function theme_ogevents_tally_table($form) {
     array('data' => '<div><span class="logo"></span><span>' . t('Other') . '</span></div>', 'class' => 'other')
   );
 
-  $output = theme('table', $header, $rows, array('class' => 'wb-inputgrid', 'summary' => t('Use this table to input weekly trips')));
+  $attr = $form['#attributes'];
+  if (!$attr) {
+    $attr = array('class' => 'wb-inputgrid');
+  }
+  else { // should be an array
+    $attr['class'] = isset($attr['class']) ? $attr['class'] . ' wb-inputgrid' : 'wb-inputgrid';
+  }
+
+  $output = theme('table', $header, $rows, $attr);
 
   return $output;
 }
+
 
 /**
  * Submit tally for the month.
@@ -200,12 +199,23 @@ function ogevents_tally_form_submit($form, &$form_state) {
   $event_nid = $form_state['values']['event'];
   $gid = $form_state['values']['gid'];
 
-  // for each week, look for info and pass to tally-submit function
+  //$totals = array();
+
+  // Update triptally node with results for each week
   foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
-    _ogevents_update_triptally($event_nid, $gid, $week,
-      $form_state['values']["biketrips$week"],
-      $form_state['values']["walktrips$week"],
-      $form_state['values']["othertrips$week"]);
+    $walk = $form_state['values']["walktrips$week"];
+    $bike =  $form_state['values']["biketrips$week"];
+    $other =  $form_state['values']["othertrips$week"];
+    $totals['walk'] += $walk;
+    $totals['bike'] += $bike;
+    $totals['other'] += $other;
+
+    _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $other);
+  }
+
+  // Additionally, if user clicked button to copy totals to final results, do that
+  if ($form_state['clicked_button']['#value'] == $form_state['values']['update-totals']) {
+    _ogevents_debug('We will now perform some magic.... Totals: w/b/o: ' . $totals['walk'] .'/'. $totals['bike'] .'/'. $totals['other']);
   }
 }
 
@@ -285,9 +295,19 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
   $staff = $reg_node->field_staff[0]['value'];
   $parents = $reg_node->field_parents[0]['value'];
 
+  $results = _ogevents_get_results($school_nid, $event_nid);
+  $default_walk = $results['walk_trips'];
+  $default_bike = $results['bike_trips'];
+  $default_other = $results['other_trips'];
+
+  $form['totals'] = array('#theme' => 'ogevents_tally_table', '#attributes' => array('summary' => 'Use this table to record final results'));
+  $form['totals']['Totals'];
+  $form['totals']['Totals']['walk'] = _ogevents_form_input($default_walk);
+  $form['totals']['Totals']['bike'] = _ogevents_form_input($default_bike);
+  $form['totals']['Totals']['other'] = _ogevents_form_input($default_bike);
+
   $form['participation'] = array(
       '#type' => 'fieldset',
-      '#title' => t('Participation'),
       '#attributes' => array('class' => 'ogevents-participation'),
       );
 

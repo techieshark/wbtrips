@@ -1,3 +1,13 @@
+div#ogevents-monthbox table.wb-inputgrid tbody th {
+  display: none;
+}
+div#ogevents-monthbox table.wb-inputgrid thead th.emptyheader {
+  display: none;
+}
+div#ogevents-monthbox table.wb-inputgrid tbody tr.sum {
+  display:none;
+}
+
 /* These rules override the defaults provided from theme_table() */
 table.wb-inputgrid tr.even td, table.wb-inputgrid tr.odd td {
   padding: 0px;
@@ -99,7 +109,7 @@ table.wb-inputgrid tbody tr.sum th {
   float: right;
 }
 
-#ogevents-tally-form input#edit-submit-save {
+#ogevents-tally-form input#edit-update-totals {
 	margin-left: .5em;
   margin-top: .75em;
   float: right;
