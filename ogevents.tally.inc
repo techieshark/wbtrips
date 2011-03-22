@@ -304,7 +304,7 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
   $form['totals']['Totals'];
   $form['totals']['Totals']['walk'] = _ogevents_form_input($default_walk);
   $form['totals']['Totals']['bike'] = _ogevents_form_input($default_bike);
-  $form['totals']['Totals']['other'] = _ogevents_form_input($default_bike);
+  $form['totals']['Totals']['other'] = _ogevents_form_input($default_other);
 
   $form['participation'] = array(
       '#type' => 'fieldset',
