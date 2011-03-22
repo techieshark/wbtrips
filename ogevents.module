@@ -29,7 +29,7 @@ define('OGEVENTS_TALLYING', 1);
 define('OGEVENTS_REGISTRATION', 2);
 
 /** Enable or disable debug messages. */
-define('OGEVENTS_DEBUG', TRUE);
+define('OGEVENTS_DEBUG', FALSE);
 
 // TODO - rewrite all href code to use drupal l($text,$path) function
 // TODO - use t() on all output
