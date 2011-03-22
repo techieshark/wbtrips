@@ -1,6 +1,6 @@
-<?php 
+<?php
 /**
- * @file 
+ * @file
  * Tally page and its specific supporting functions.
  * @ingroup ogevents
  */
@@ -42,14 +42,6 @@ function ogevents_page_tally($event_nid, $gid) {
     return '';
   }
 
-
-
-  $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
-  $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
-         . 'You can update the trip log weekly or just enter your totals at the end of the month in the last row.',
-           array('%school-name' => $school_node->title));
-
-
   $header = array('Walk', 'Bike', 'Other');
   $rows = array();
   $results = _ogevents_get_results($school_nid, $event_nid);
@@ -58,18 +50,21 @@ function ogevents_page_tally($event_nid, $gid) {
   $other = $results['other_trips'];
   $rows[] = array($walk, $bike, $other);
 
-  $tally_box = '<h3>' . t('Weekly Totals') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid);
-  $month_box = '<h3>' . t('Monthly Totals') . '</h3>' . theme('table', $header, $rows) . drupal_get_form('ogevents_participation_form', $event_nid, $gid);
+  $tally_box = '<h3>' . t('1. Weekly Log (Optional)') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid);
+  $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . theme('table', $header, $rows) . drupal_get_form('ogevents_participation_form', $event_nid, $gid);
+
+  $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
+  $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
+         . 'You can update the trip log weekly or just enter your totals at the end of the month.',
+           array('%school-name' => $school_node->title));
 
   $output .= '<div id="ogevents-tally-control">';
   $output .= '<div id="ogevents-tallybox">' . $tally_box . '</div>';
   $output .= '<div id="ogevents-monthbox">' . $month_box . '</div>';
   $output .= '</div>';
 
-  $output .= '<div class="ogevents-after-form">';
-  $output .= '<p>' . l(t('Return to My Schools'), "dashboard") . '</p>';
+  $output .= '<p>' . l(t('Return to My Schools'), "dashboard") . '<br/>';
   $output .= '<p>' . l(t('Compare your progress to other schools'), "event/$event_nid/results") . '</p>';
-  $output .= '</div>';
 
   // output date - TODO
 
@@ -284,21 +279,15 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
   $staff = $reg_node->field_staff[0]['value'];
   $parents = $reg_node->field_parents[0]['value'];
 
-  if ($studentbody + $participants + $staff + $parents > 0) {
-    $collapsed = TRUE; //because fields have already been filled out.
-  }
-
   $form['participation'] = array(
       '#type' => 'fieldset',
-      //'#title' => t('Participation'),
-      //'#collapsible' => TRUE,
-      //'#collapsed' => $collapsed,
+      '#title' => t('Participation'),
       '#attributes' => array('class' => 'ogevents-participation'),
       );
 
   $form['participation']['participants'] = array(
       '#type' => 'textfield',
-      '#title' => t('How many students participated (at least one trip) in the Challenge?'),
+      '#title' => t('How many students participated (at least one active trip) in the Challenge?'),
       '#default_value' => $participants,
       '#size' => 30,
       '#maxlength' => 12,
@@ -316,7 +305,7 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
 
   $form['participation']['parents'] = array(
       '#type' => 'textfield',
-      '#title' => t('How many parents were involved?'),
+      '#title' => t('How many parents helped or participated?'),
       '#default_value' => $parents,
       '#size' => 30,
       '#maxlength' => 12,
@@ -325,7 +314,7 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid) {
 
   $form['participation']['staff'] = array(
       '#type' => 'textfield',
-      '#title' => t('How many teachers/staff were involved?'),
+      '#title' => t('How many teachers/staff helped or participated?'),
       '#default_value' => $staff,
       '#size' => 30,
       '#maxlength' => 12,
