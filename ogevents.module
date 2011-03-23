@@ -409,11 +409,18 @@ function _ogevents_get_results($school_nid, $event_nid) {
     $participants = $reg_node->field_participants[0]['value'];
     $studentbody = $reg_node->field_studentbody[0]['value'];
     $percent = $studentbody ? ($participants / $studentbody * 100) : 0;
+    $final_biketrips = $reg_node->field_biketrips[0]['value'];
+    $final_walktrips = $reg_node->field_walktrips[0]['value'];
+    $final_othertrips = $reg_node->field_othertrips[0]['value'];
+
   }
 
   return array('bike_trips' => $biketrips,
                'walk_trips' => $walktrips,
                'other_trips' => $othertrips,
+               'final_bike_trips' => $final_biketrips,
+               'final_walk_trips' => $final_walktrips,
+               'final_other_trips' => $final_othertrips,
                'staff' => $staff,
                'parents' => $parents,
                'participants' => $participants,
