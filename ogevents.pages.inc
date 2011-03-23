@@ -279,6 +279,10 @@ function _ogevents_get_challenge_results_header($csv = FALSE) {
     'Bike'                 => array(FALSE, TRUE,  TRUE),
     'Other'                => array(FALSE, TRUE,  TRUE),
     'Total'                => array(FALSE, TRUE,  TRUE),
+    'Final Walk'           => array(FALSE, FALSE,  TRUE),
+    'Final Bike'           => array(FALSE, FALSE,  TRUE),
+    'Final Other'          => array(FALSE, FALSE,  TRUE),
+    'Final Total'          => array(FALSE, FALSE,  TRUE),
     'Student Participants' => array(FALSE, FALSE, TRUE),
     'Student Body'         => array(FALSE, FALSE, TRUE),
     'Student Percentage'   => array(FALSE, FALSE, TRUE),
@@ -320,10 +324,16 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     $school_node = node_load($school_nid);
 
     $results = _ogevents_get_results($school_nid, $event_nid);
+
     $bike = $results['bike_trips'];
     $walk = $results['walk_trips'];
     $other = $results['other_trips'];
     $total = $bike + $walk + $other;
+
+    $final_bike = $results['final_bike_trips'];
+    $final_walk = $results['final_walk_trips'];
+    $final_other = $results['final_other_trips'];
+    $final_total = $final_bike + $final_walk + $final_other;
 
 
     // TODO - idea - make a filter function to keep certain keys out.
@@ -353,6 +363,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     array_push($row, $walk, $bike, $other, $total);
 
     if ($csv) {
+      array_push($row, $final_walk, $final_bike, $final_other, $final_total);
       array_push($row, $results['participants'],
                        $results['studentbody'],
                        $results['student_percentage']);
