@@ -25,6 +25,9 @@ define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
 /** The number of weeks in a challenge event. */
 define('OGEVENTS_NUM_WEEKS', 5);
 
+/** Constant used internally to indicate that final results have been submitted. */
+define('OGEVENTS_RESULTS_SUBMITTED', 1); // 1 means true, 0 means false.
+
 define('OGEVENTS_TALLYING', 1);
 define('OGEVENTS_REGISTRATION', 2);
 

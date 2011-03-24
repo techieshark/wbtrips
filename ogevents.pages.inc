@@ -47,7 +47,7 @@ function ogevents_page_dashboard() {
       // build table header + output instructions
       $header = array('School');
       if ($tallying_open) {
-        array_push($header, 'Walk Trips', 'Bike Trips', 'Other Trips', 'Participation');
+        array_push($header, 'Weekly Walk Trips', 'Weekly Bike Trips', 'Weekly Other Trips', 'Participation');
         $output .= '<p>' . t('Click the name of a school to tally trips.') . '</p>';
       }
       else {
@@ -62,7 +62,10 @@ function ogevents_page_dashboard() {
       }
 
 
+      $header[] = 'Final Results Submitted?';
       $header[] = 'School Profile';
+
+      $star = '<span class="warning">*</span>';
       $rows = array();
 
       foreach ($schools as $school_nid) {
@@ -70,16 +73,37 @@ function ogevents_page_dashboard() {
         $row = array();
 
         if ($tallying_open) {
-          // link school name -> tally page
-          $row[] = l($school_name, "event/$event_nid/tally/$school_nid",
-                     array('attributes' => array('title' => "Tally trips for $school_name")));
 
           // get school challenge results for current event.
           $results = _ogevents_get_results($school_nid, $event_nid);
+          if (($results['bike_trips'] + $results['walk_trips'] + $results['other_trips']) >
+              ($results['final_bike_trips'] + $results['final_walk_trips'] + $results['final_other_trips'])) {
+            $warning = TRUE;
+            $end_warning = TRUE;
+          }
+          else {
+            $warning = FALSE;
+          }
+
+          // link school name -> tally page
+          $row[] = l($school_name, "event/$event_nid/tally/$school_nid",
+                     array('attributes' => array('title' => "Tally trips for $school_name")))
+                   . ($warning ? $star : '');
+
           array_push($row, $results['walk_trips'],
                            $results['bike_trips'],
                            $results['other_trips'],
                            round($results['student_percentage'],1) . '%');
+
+          $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+          $reg_node = node_load($reg_nid);
+          if ($reg_node->field_results_submitted[0]['value'] == OGEVENTS_RESULTS_SUBMITTED) {
+            array_push($row, t('Yes') . ($warning ? ' ' . $star : ''));
+          }
+          else {
+            array_push($row, t('No'));
+          }
+
         }
         else {
           // tallying is not open (yet) but registration must be,
@@ -103,10 +127,16 @@ function ogevents_page_dashboard() {
       $output .= theme('table', $header, $rows);
 
       if ($registration_open) {
-        $output .= '<p>' . l('Register another school.', "event/$event_nid/register") . '</p>';
+        $output .= '<p><b>' . l('Register another school', "event/$event_nid/register") . '</b></p>';
       }
     }
     $output .= "<br/>";
+
+    if ($end_warning) {
+      $output .= '<div class="warning"><span class="warning">*</span>This school\'s weekly log total is greater than the recorded final result.  You may want to update and resubmit your final results.</div>';
+      //drupal_set_message("Warning: the total trips logged weekly at one or more schools are greater than their recorded final results.  (You may want to update and resubmit your final results.)");
+
+    }
   }
 
   return $output;
