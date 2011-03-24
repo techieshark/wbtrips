@@ -143,7 +143,8 @@ function ogevents_page_dashboard() {
 /** Check if weekly and final resutls are out of sync. */
 function _ogevents_test_sync($results) {
   return (($results['bike_trips'] + $results['walk_trips'] + $results['other_trips']) >
-      ($results['final_bike_trips'] + $results['final_walk_trips'] + $results['final_other_trips']));
+      ($results['final_bike_trips'] + $results['final_walk_trips'] + $results['final_other_trips'])) &&
+      $results['final_results_submitted'];
 }
 
 
