@@ -76,8 +76,7 @@ function ogevents_page_dashboard() {
 
           // get school challenge results for current event.
           $results = _ogevents_get_results($school_nid, $event_nid);
-          if (($results['bike_trips'] + $results['walk_trips'] + $results['other_trips']) >
-              ($results['final_bike_trips'] + $results['final_walk_trips'] + $results['final_other_trips'])) {
+          if (_ogevents_test_sync($results)) {
             $warning = TRUE;
             $end_warning = TRUE;
           }
@@ -134,12 +133,17 @@ function ogevents_page_dashboard() {
 
     if ($end_warning) {
       $output .= '<div class="warning"><span class="warning">*</span>This school\'s weekly log total is greater than the recorded final result.  You may want to update and resubmit your final results.</div>';
-      //drupal_set_message("Warning: the total trips logged weekly at one or more schools are greater than their recorded final results.  (You may want to update and resubmit your final results.)");
-
     }
   }
 
   return $output;
+}
+
+
+/** Check if weekly and final resutls are out of sync. */
+function _ogevents_test_sync($results) {
+  return (($results['bike_trips'] + $results['walk_trips'] + $results['other_trips']) >
+      ($results['final_bike_trips'] + $results['final_walk_trips'] + $results['final_other_trips']));
 }
 
 
@@ -264,11 +268,17 @@ function ogevents_page_results($event_nid) {
   $output = '<p>' . 'You may ' . l('download these results', "event/$event_nid/results/csv") . '.' . '</p>';
 
   _ogevents_debug("Event: $event_nid"); //DEBUG
+  $out_of_sync = FALSE;
 
   $header = _ogevents_get_challenge_results_header(FALSE);
-  $rows = _ogevents_get_challenge_results_data($event_nid, TRUE, FALSE);
+  $rows = _ogevents_get_challenge_results_data($event_nid, TRUE, FALSE, $out_of_sync);
 
   $output .= theme('table', $header, $rows);
+
+  if ($out_of_sync) {
+    $output .= '<br/>';
+    $output .= '<div class="warning"><span class="warning">*</span>These may be preliminary results; this school may need to resubmit their final results.</div>';
+  }
   return $output;
 }
 
@@ -344,8 +354,9 @@ function _ogevents_get_challenge_results_header($csv = FALSE) {
  * @param coordinator_as_link TRUE if the coordinator name should be a link to their contact form
  * @param csv - if data is intended for CSV output, in which case extra fields are included (if user has permission).
  */
-function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, $csv = FALSE) {
+function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, $csv = FALSE, &$out_of_sync = FALSE) {
   $rows = array();
+  $star = '<span class="warning">*</span>';
 
   // foreach school, add results to table..
   foreach (_ogevents_get_registered_schools($event_nid) as $school_nid) {
@@ -354,6 +365,11 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     $school_node = node_load($school_nid);
 
     $results = _ogevents_get_results($school_nid, $event_nid);
+    $warning = FALSE;
+    if(_ogevents_test_sync($results)) {
+      $warning = TRUE;
+      $out_of_sync = TRUE;
+    }
 
     $bike = $results['bike_trips'];
     $walk = $results['walk_trips'];
@@ -368,7 +384,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
 
     // TODO - idea - make a filter function to keep certain keys out.
     // Instead of the following somewhat complicated/ugly if/else code (could use similar code for registered schools csv)
-    array_push($row, $school_node->title);
+    array_push($row, $school_node->title . ($warning ? ' ' . $star : ''));
 
     if ($csv) {
       array_push($row, $school_node->locations[0]['street']);
