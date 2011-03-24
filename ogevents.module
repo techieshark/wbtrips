@@ -230,6 +230,14 @@ function _ogevents_get_results_page_title($event_nid) {
   }
 }
 
+/** Implements hook_cron() */
+function ogevents_cron() {
+  menu_rebuild(); // try to ensure that the tally page is available when tallying period starts.
+  //ideal fix: when event node saved, rebuild menu (if necessary). so if user changes tally start/end date the
+  // menu is updated.  Or if a user saves new event we need to update menu.
+  // TODO - only do menu_rebuild if needed.
+}
+
 /** Implements hook_theme() */
 function ogevents_theme() {
   return array(
