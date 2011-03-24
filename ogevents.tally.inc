@@ -385,6 +385,7 @@ function ogevents_participation_form_submit($form, &$form_state) {
   $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
   $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
   $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
+  $reg_node->field_results_submitted[0]['value'] = 1;
 
   node_save($reg_node);
 
