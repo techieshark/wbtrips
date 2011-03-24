@@ -423,6 +423,7 @@ function _ogevents_get_results($school_nid, $event_nid) {
     $final_biketrips = $reg_node->field_biketrips[0]['value'];
     $final_walktrips = $reg_node->field_walktrips[0]['value'];
     $final_othertrips = $reg_node->field_othertrips[0]['value'];
+    $finals_submitted = $reg_node->field_results_submitted[0]['value'];
 
   }
 
@@ -432,6 +433,7 @@ function _ogevents_get_results($school_nid, $event_nid) {
                'final_bike_trips' => $final_biketrips,
                'final_walk_trips' => $final_walktrips,
                'final_other_trips' => $final_othertrips,
+               'final_results_submitted' => $finals_submitted,
                'staff' => $staff,
                'parents' => $parents,
                'participants' => $participants,
