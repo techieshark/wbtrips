@@ -2,6 +2,7 @@
 /**
  * @file
  * User page callbacks for the ogevents module.
+ * @ingroup ogevents
  */
 
 
