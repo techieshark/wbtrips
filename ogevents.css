@@ -58,7 +58,7 @@ table.wb-inputgrid tbody th {
 }
 
 table.wb-inputgrid tbody .hover { /* jQuery hover effect from style-table.js */
-	background:#bcd9e1;
+	background:#EEEEEE;
 }
 
 table.wb-inputgrid tbody tr input.input-error {

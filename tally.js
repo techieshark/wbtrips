@@ -11,7 +11,6 @@ Drupal.behaviors.ogevents = function(context) {
 
   // highlight on hover
   $('table.wb-inputgrid tbody tr', context).not('.sum').not('ogevents-hover-processed').addClass('ogevents-hover-processed').hover(function () {
-  //$('table.wb-inputgrid tbody tr:not(.inputgrid-hover-processed)', context).addClass('inputgrid-hover-processed').not('.sum').hover(function () {
     $(this).addClass('hover');
     $(this).find('input').addClass('hover');
   }, function () {
@@ -19,15 +18,16 @@ Drupal.behaviors.ogevents = function(context) {
     $(this).find('input').removeClass('hover');
   });
 
-  // clear and set default value on focus and blur
+  // To aid input, if cell value is zero, clear it when user wants to enter input.  
+  // We don't clear values that aren't zero because a user probably wants to see them to modify them. 
   // see http://www.miuaiga.com/index.cfm/2009/8/31/jQuery-form-input-defaultValue
   $('table.wb-inputgrid tbody input:not(.ogevents-focus-processed)', context).addClass('.ogevents-focus-processed').focus(function () {
-    if (this.value == $(this)[0].defaultValue || this.value == '')
+    if (this.value == 0)
       this.value='';
   });
   $('table.wb-inputgrid tbody input:not(.ogevents-blur-processed)', context).addClass('.ogevents-blur-processed').blur(function () {
-    if (this.value == $(this)[0].defaultValue || this.value == '')
-      this.value = $(this)[0].defaultValue;
+    if (this.value == '')
+      this.value = 0;
   });
 
   // When any input changes, recalculate sums displayed below table
