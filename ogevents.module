@@ -423,8 +423,9 @@ function _ogevents_get_results($school_nid, $event_nid) {
     $final_biketrips = $reg_node->field_biketrips[0]['value'];
     $final_walktrips = $reg_node->field_walktrips[0]['value'];
     $final_othertrips = $reg_node->field_othertrips[0]['value'];
-    $finals_submitted = $reg_node->field_results_submitted[0]['value'];
-
+    $finals_submitted = 
+      $reg_node->field_results_submitted[0]['value'] == OGEVENTS_RESULTS_SUBMITTED ? 
+      'Yes' : 'No';
   }
 
   return array('bike_trips' => $biketrips,
@@ -434,10 +435,10 @@ function _ogevents_get_results($school_nid, $event_nid) {
                'final_walk_trips' => $final_walktrips,
                'final_other_trips' => $final_othertrips,
                'final_results_submitted' => $finals_submitted,
-               'staff' => $staff,
-               'parents' => $parents,
-               'participants' => $participants,
-               'studentbody' => $studentbody,
+               'staff' => $staff ? $staff : 0,
+               'parents' => $parents ? $parents : 0,
+               'participants' => $participants ? $participants : 0,
+               'studentbody' => $studentbody ? $studentbody : 0,
                'student_percentage' => $percent);
 }
 
@@ -585,10 +586,6 @@ function _ogevents_get_blank_regnode() {
   $newNode->promote = 0;
   $newNode->moderate = 0;
   $newNode->sticky = 0;
-  $newNode->field_studentbody[0]['value'] = 0;
-  $newNode->field_participants[0]['value'] = 0;
-  $newNode->field_staff[0]['value'] = 0;
-  $newNode->field_parents[0]['value'] = 0;
   return $newNode;
 }
 
