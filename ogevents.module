@@ -62,12 +62,17 @@ define('OGEVENTS_DEBUG', FALSE);
 /**
  * Print a debug msg/obj if OGEVENTS_DEBUG is set.
  *
- * Note that the devel module (which provides dpm() should be enabled).
+ * Note that the devel module (which provides dpm() should be enabled.
  * @param foo A string or object to be printed.
  */
 function _ogevents_debug($foo) {
-  if (OGEVENTS_DEBUG && function_exists('dpm')) {
-    is_string($foo) ? drupal_set_message($foo) : dpm($foo);
+  if (OGEVENTS_DEBUG) {
+    if (is_string($foo)) {
+      drupal_set_message($foo);
+    } 
+    else {
+      function_exists('dpm') ? dpm($foo) : drupal_set_message('<pre><code>' . print_r($foo, TRUE) . '</code></pre>');
+    }
   }
 }
 
@@ -123,7 +128,6 @@ function ogevents_init() {
 function ogevents_menu() {
   $items = array();
   $event_nids = _ogevents_get_current_reg_events();
-  $tlyids = _ogevents_get_current_tally_events();
 
   $items['dashboard'] = array(
         'title' => 'My Schools',
@@ -183,27 +187,80 @@ function ogevents_menu() {
         );
   }
 
-  foreach ($tlyids as &$tly) {
-    $items["event/$tly/tally/%"] = array(
-        'title' => t('Tally Trips'),
-        'page callback' => 'ogevents_page_tally',
-        'page arguments' => array(1,3),
-        'access arguments' => array('access ogevents content'),
-        'type' => MENU_CALLBACK,
-        'file' => 'ogevents.tally.inc',
-        );
-
-    $items["event/$tly/thanks/%"] = array(
-        'title' => t('Thanks!'),
-        'page callback' => 'ogevents_page_tally_thanks',
-        'page arguments' => array(1,3),
-        'access callback' => TRUE,
-        'type' => MENU_CALLBACK,
-        'file' => 'ogevents.tally.inc',
-        );
-  }
+  $items["event/%/tally/%"] = array(
+      'title' => t('Tally Trips'),
+      'page callback' => 'ogevents_page_tally',
+      'page arguments' => array(1,3),
+      'access callback' => '_ogevents_tally_page_access',
+      'access arguments' => array(1,3,TRUE),
+      'type' => MENU_CALLBACK,
+      'file' => 'ogevents.tally.inc',
+      );
+  $items["event/%/thanks/%"] = array(
+      'title' => t('Thanks!'),
+      'page callback' => 'ogevents_page_tally_thanks',
+      'page arguments' => array(1,3),
+      'access callback' => '_ogevents_tally_page_access',
+      'access arguments' => array(1,3, FALSE),
+      'type' => MENU_CALLBACK,
+      'file' => 'ogevents.tally.inc',
+      );
 
   return $items;
+}
+
+
+/** 
+ * Check if the user should be on the tallying pages for the given school and event.
+ * @param output_errors if TRUE, we output problems with drupal_set_message
+ * @return true if access check passes, false otherwise
+ */
+function _ogevents_tally_page_access($event_nid, $school_nid, $output_errors = FALSE) {
+
+  // if they don't have basic permission for tallying, return access denied
+  if (! user_access('access ogevents content')) return false;
+
+  $school_node = node_load($school_nid); 
+
+  // Sanity checks:
+  // - does school exist?
+  if (!$school_node) {
+    if ($output_errors) {
+      drupal_set_message(t('The school ID ("!school-id") does not exist.', array('!school-id' => $school_nid)), 'error');
+    }
+    return false;
+  }
+  //   - is school registered for this event?
+  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  _ogevents_debug("get_reg returns:");
+  _ogevents_debug($reg_nid);
+  if (!$reg_nid) {
+    if ($output_errors) {
+      drupal_set_message(t('No registration was found for the given school ("!school-id") & event ("!event-id").',
+                         array('!school-id' => $school_nid, '!event-id' => $event_nid)), 'error');
+    }
+    return false;
+  }
+  else {
+    // - is this our school?
+    $reg_node = node_load($reg_nid);
+    global $user;
+    if ($user->uid != $reg_node->uid) {
+      if ($output_errors) {
+        drupal_set_message(t('You cannot edit the tally for this school because you did not register it.'), 'error');
+      }
+      return false;
+    }
+  }
+  // is tallying open?
+  if (! _ogevents_is_tallying_open($event_nid)) {
+    if ($output_errors) {
+      drupal_set_message(t('Challenge is not yet open for tallying.'), 'error');
+    }
+    return false;
+  }
+
+  return TRUE;
 }
 
 
