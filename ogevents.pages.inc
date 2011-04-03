@@ -47,7 +47,10 @@ function ogevents_page_dashboard() {
       // build table header + output instructions
       $header = array('School');
       if ($tallying_open) {
-        array_push($header, 'Weekly Walk Trips', 'Weekly Bike Trips', 'Weekly Other Trips', 'Participation');
+        array_push($header, 'Weekly Walk Trips', 'Weekly Bike Trips', 'Weekly Other Trips');
+        array_push($header, 'Final Results Submitted?');
+        array_push($header, 'Final Walk Trips', 'Final Bike Trips', 'Final Other Trips');
+        array_push($header, 'Participation');
         $output .= '<p>' . t('Click the name of a school to tally trips.') . '</p>';
       }
       else {
@@ -62,10 +65,9 @@ function ogevents_page_dashboard() {
       }
 
 
-      $header[] = 'Final Results Submitted?';
       $header[] = 'School Profile';
 
-      $star = '<span class="warning">*</span>';
+      $star = ' <span class="warning">*</span>';
       $rows = array();
 
       foreach ($schools as $school_nid) {
@@ -91,17 +93,19 @@ function ogevents_page_dashboard() {
 
           array_push($row, $results['walk_trips'],
                            $results['bike_trips'],
-                           $results['other_trips'],
+                           $results['other_trips']);
+	
+          $finals_submitted = $results['final_results_submitted'];
+          if ($finals_submitted == 'Yes' && $warning) {
+            $finals_submitted .= $star;
+          }
+
+          array_push($row, $finals_submitted, 
+                           $results['final_walk_trips'],
+                           $results['final_bike_trips'],
+                           $results['final_other_trips'],
                            round($results['student_percentage'],1) . '%');
 
-          $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
-          $reg_node = node_load($reg_nid);
-          if ($reg_node->field_results_submitted[0]['value'] == OGEVENTS_RESULTS_SUBMITTED) {
-            array_push($row, t('Yes') . ($warning ? ' ' . $star : ''));
-          }
-          else {
-            array_push($row, t('No'));
-          }
 
         }
         else {
@@ -320,10 +324,11 @@ function _ogevents_get_challenge_results_header($csv = FALSE) {
     'Bike'                 => array(FALSE, TRUE,  TRUE),
     'Other'                => array(FALSE, TRUE,  TRUE),
     'Total'                => array(FALSE, TRUE,  TRUE),
-    'Final Walk'           => array(FALSE, FALSE,  TRUE),
-    'Final Bike'           => array(FALSE, FALSE,  TRUE),
-    'Final Other'          => array(FALSE, FALSE,  TRUE),
-    'Final Total'          => array(FALSE, FALSE,  TRUE),
+    'Recorded Final Results' => array(FALSE, FALSE, TRUE),
+    'Final Walk'           => array(FALSE, FALSE, TRUE),
+    'Final Bike'           => array(FALSE, FALSE, TRUE),
+    'Final Other'          => array(FALSE, FALSE, TRUE),
+    'Final Total'          => array(FALSE, FALSE, TRUE),
     'Student Participants' => array(FALSE, FALSE, TRUE),
     'Student Body'         => array(FALSE, FALSE, TRUE),
     'Student Percentage'   => array(FALSE, FALSE, TRUE),
@@ -354,10 +359,11 @@ function _ogevents_get_challenge_results_header($csv = FALSE) {
  * Return array of rows, each row containing results for one school in the given event.
  * @param coordinator_as_link TRUE if the coordinator name should be a link to their contact form
  * @param csv - if data is intended for CSV output, in which case extra fields are included (if user has permission).
+ * @param out_of_sync: will be set to TRUE if final results do not appear to be up to date (@see _ogevents_test_sync). 
  */
 function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, $csv = FALSE, &$out_of_sync = FALSE) {
   $rows = array();
-  $star = '<span class="warning">*</span>';
+  $star = $csv ? ' *' : ' <span class="warning">*</span>';
 
   // foreach school, add results to table..
   foreach (_ogevents_get_registered_schools($event_nid) as $school_nid) {
@@ -377,6 +383,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     $other = $results['other_trips'];
     $total = $bike + $walk + $other;
 
+    $finals_submitted = $results['final_results_submitted'];
     $final_bike = $results['final_bike_trips'];
     $final_walk = $results['final_walk_trips'];
     $final_other = $results['final_other_trips'];
@@ -385,7 +392,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
 
     // TODO - idea - make a filter function to keep certain keys out.
     // Instead of the following somewhat complicated/ugly if/else code (could use similar code for registered schools csv)
-    array_push($row, $school_node->title . ($warning ? ' ' . $star : ''));
+    array_push($row, $school_node->title . ($warning ? $star : ''));
 
     if ($csv) {
       array_push($row, $school_node->locations[0]['street']);
@@ -410,7 +417,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     array_push($row, $walk, $bike, $other, $total);
 
     if ($csv) {
-      array_push($row, $final_walk, $final_bike, $final_other, $final_total);
+      array_push($row, $finals_submitted, $final_walk, $final_bike, $final_other, $final_total);
       array_push($row, $results['participants'],
                        $results['studentbody'],
                        $results['student_percentage']);
