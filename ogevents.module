@@ -138,7 +138,7 @@ function ogevents_menu() {
         'description' => 'Show duplicate schools',
         'page callback' => 'ogevents_page_duplicates',
         'access arguments' => array('access ogevents reports'),
-        'type' => MENU_CALLBACK, //TODO - we might want this to be an actual menu item for admins
+        'type' => MENU_SUGGESTED_ITEM, // admins may want to enable this menu item
         'file' => 'ogevents.pages.inc',
         );
 
