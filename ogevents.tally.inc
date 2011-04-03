@@ -5,46 +5,18 @@
  * @ingroup ogevents
  */
 
+
 /**
  * Page (Menu item callback) to record trips for the month.
  */
 function ogevents_page_tally($event_nid, $gid) {
-  $school_nid = $gid;
 
   $output = '';
-  $school_node = node_load($gid); // load school
-
-  // Sanity checks:
-  // - does school exist?
-  if (!$school_node) {
-    drupal_set_message(t('The school ID ("!school-id") does not exist.', array('!school-id' => $gid)), 'error');
-    return $output;
-  }
-  //   - is school registered for this event?
   $reg_nid = _ogevents_get_registration($event_nid, $gid);
-  if (!$reg_nid) {
-    drupal_set_message(t('No registration was found for the given school ("!school-id") & event ("!event-id").',
-                         array('!school-id' => $gid, '!event-id' => $event_nid)), 'error');
-    return '';
-  }
-  else {
-    // - is this our school?
-    $reg_node = node_load($reg_nid);
-    global $user;
-    if ($user->uid != $reg_node->uid) {
-      drupal_set_message(t('You cannot edit the tally for this school because you did not register it.'), 'error');
-      return '';
-    }
-  }
-  // is tallying open?
-  if (! _ogevents_is_tallying_open($event_nid)) {
-    drupal_set_message(t('Challenge is not yet open for tallying.'), 'error');
-    return '';
-  }
-
   $tally_box = '<h3>' . t('1. Weekly Log (Optional)') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid, $reg_nid);
   $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . drupal_get_form('ogevents_participation_form', $event_nid, $gid, $reg_nid);
 
+  $school_node = node_load($gid);
   $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
   $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
          . 'You can update the trip log weekly or just enter your totals at the end of the month.',
@@ -68,6 +40,7 @@ function ogevents_page_tally($event_nid, $gid) {
  * Page for confirmation after submitting monthly tally.
  */
 function ogevents_page_tally_thanks($event_nid, $gid) {
+
   $output .= '<p>';
   $output = t('Thanks for submitting your Walk + Bike Challenge final results!');
   $output .= '</p>';
