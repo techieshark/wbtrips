@@ -119,15 +119,9 @@ function ogevents_init() {
  *
  * - /event/$event_nid/thanks/$school_nid
  *   A thanks/confirmation page when final results are submitted.
- *
- * Note: This hook is rarely called (for instance, when the module is
- *       first loaded).  Should we call it manually when we need to
- *       register new items (e.g. when we add events)? TODO.
- *       Otherwise they'll only show when we clear the menu cache (BUG).
  */
 function ogevents_menu() {
   $items = array();
-  $event_nids = _ogevents_get_current_reg_events();
 
   $items['dashboard'] = array(
         'title' => 'My Schools',
@@ -146,46 +140,57 @@ function ogevents_menu() {
         'file' => 'ogevents.pages.inc',
         );
 
-  foreach ($event_nids as &$event_nid) {
+  // we'll only present register links for events actually open to registration
+  $open_event_nids = _ogevents_get_current_reg_events();
+  foreach ($open_event_nids as $event_nid) {
     $items["event/$event_nid/register"] = array(
         'title callback' => '_ogevents_get_reg_page_title',
         'title arguments' => array(1),
         'page callback' => 'ogevents_page_register',
         'page arguments' => array(1),
-        'access callback' => TRUE,
+        'access callback' => '_ogevents_is_registration_open',
+        'access arguments' => array(1),
         'file' => 'ogevents.pages.inc',
         );
+  }
 
-    $items["event/$event_nid/register/csv"] = array(
-        'title' => 'Registered Schools CSV Export',
-        'description' => 'CSV export of all registered schools',
-        'page callback' => 'ogevents_page_registered_csv',
-        'page arguments' => array(1),
-        'access arguments' => array('access ogevents reports'),
-        'type' => MENU_CALLBACK,
-        'file' => 'ogevents.pages.inc',
-        );
-
+  // users may want to view results for all current/past events
+  // (even registration or tallying has ended).
+  $published_event_nids = _ogevents_get_events();
+  foreach ($published_event_nids as $event_nid) {
     $items["event/$event_nid/results"] = array(
         'title callback' => '_ogevents_get_results_page_title',
         'title arguments' => array(1),
         'description' => 'Results for all participating schools',
         'page callback' => 'ogevents_page_results',
         'page arguments' => array(1),
-        'access callback' => TRUE,
-        'file' => 'ogevents.pages.inc',
-        );
-
-    $items["event/$event_nid/results/csv"] = array(
-        'title' => 'Results CSV Export',
-        'description' => 'CSV export of results for all participating schools',
-        'page callback' => 'ogevents_page_results_csv',
-        'page arguments' => array(1),
-        'access callback' => TRUE,
-        'type' => MENU_CALLBACK,
+        'access callback' => '_ogevents_results_page_access',
+        'access arguments' => array(1),
         'file' => 'ogevents.pages.inc',
         );
   }
+
+  $items["event/%/register/csv"] = array(
+      'title' => 'Registered Schools CSV Export',
+      'description' => 'CSV export of all registered schools',
+      'page callback' => 'ogevents_page_registered_csv',
+      'page arguments' => array(1),
+      'access callback' => '_ogevents_register_report_access',
+      'access arguments' => array(1),
+      'type' => MENU_CALLBACK,
+      'file' => 'ogevents.pages.inc',
+      );
+  
+  $items["event/%/results/csv"] = array(
+      'title' => 'Results CSV Export',
+      'description' => 'CSV export of results for all participating schools',
+      'page callback' => 'ogevents_page_results_csv',
+      'page arguments' => array(1),
+      'access callback' => '_ogevents_results_page_access',
+      'access arguments' => array(1),
+      'type' => MENU_CALLBACK,
+      'file' => 'ogevents.pages.inc',
+      );
 
   $items["event/%/tally/%"] = array(
       'title' => t('Tally Trips'),
@@ -207,6 +212,26 @@ function ogevents_menu() {
       );
 
   return $items;
+}
+
+
+/**
+ * Check if event is valid and user has reports permission. 
+ */
+function _ogevents_register_report_access($event_nid) {
+  $event_node = node_load($event_nid);
+  if (user_access('access ogevents reports') && $event_node) {
+    return true;
+  } 
+  return false;
+}
+
+/**
+ * Check if event is valid.
+ */
+function _ogevents_results_page_access($event_nid) {
+  $event_node = node_load($event_nid);
+  return $event_node ? true : false;
 }
 
 
@@ -279,7 +304,7 @@ function _ogevents_get_reg_page_title($nid) {
 
 /** Provides title for the results page(s). */
 function _ogevents_get_results_page_title($event_nid) {
-  if (count(_ogevents_get_current_reg_events()) > 1) {
+  if (count(_ogevents_get_events()) > 1) {
     return t('Results for @event', array('@event' => _ogevents_get_node_title($event_nid)));
   }
   else { // Keep things simple if only one event running
@@ -287,13 +312,6 @@ function _ogevents_get_results_page_title($event_nid) {
   }
 }
 
-/** Implements hook_cron() */
-function ogevents_cron() {
-  menu_rebuild(); // try to ensure that the tally page is available when tallying period starts.
-  //ideal fix: when event node saved, rebuild menu (if necessary). so if user changes tally start/end date the
-  // menu is updated.  Or if a user saves new event we need to update menu.
-  // TODO - only do menu_rebuild if needed.
-}
 
 /** Implements hook_theme() */
 function ogevents_theme() {
@@ -304,6 +322,7 @@ function ogevents_theme() {
       ),
   );
 }
+
 
 /**
  * Implementation of hook_nodeapi.
@@ -332,6 +351,9 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 
         $_REQUEST['destination'] = 'dashboard';
       }
+      else if ($node->type == 'event') {
+        menu_rebuild(); 
+      }
     break;
     case 'delete':
       if ($node->type == 'school') {
@@ -346,7 +368,14 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
           drupal_set_message("Deleted registration: $reg_nid");
         }
       }
+      else if ($node->type == 'event') {
+        menu_rebuild();
+      }
     break;
+    case 'update':
+      if ($node->type == 'event') {
+        menu_rebuild();
+      }
   }
 }
 
@@ -538,6 +567,9 @@ function _ogevents_is_registration_open($event_node) {
  */
 function _ogevents_is_open_for($event, $window) {
   $event_node = is_numeric($event) ? node_load($event) : $event;
+  
+  if (!$event_node) return false; //basic sanity check
+
   if ($window == OGEVENTS_TALLYING) {
     $field = 'field_tallydates';
   }
@@ -587,11 +619,7 @@ function _ogevents_get_tally_end($event) {
  * @return Array of node IDs.
  */
 function _ogevents_get_current_events($field) {
-  $result = db_query("SELECT n.nid FROM {node} n WHERE n.type = 'event' and n.status = 1");
-  $nodes = array();
-  while ($row = db_fetch_object($result)) {
-    $nodes[] = $row->nid;
-  }
+  $nodes = _ogevents_get_events();
 
   $today = getdate();
   $UTC_today = $today[0];
@@ -610,6 +638,19 @@ function _ogevents_get_current_events($field) {
     }
   }
   return $current_event_nids;
+}
+
+
+/**
+ * Returns array of nids of published event nodes.
+ */
+function _ogevents_get_events() {
+  $result = db_query("SELECT n.nid FROM {node} n WHERE n.type = 'event' and n.status = 1");
+  $nodes = array();
+  while ($row = db_fetch_object($result)) {
+    $nodes[] = $row->nid;
+  }
+  return $nodes;
 }
 
 
