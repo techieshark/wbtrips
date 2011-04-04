@@ -55,14 +55,19 @@ function ogevents_page_dashboard() {
         $output .= '<p>' . t('Click the name of a school to tally trips.') . '</p>';
       }
       else {
-        $output .= '<p>'
-                . t('Trip Tallying will be available on @tally-start.',
-                    array('@tally-start' =>
-                      format_date(
-                        _ogevents_get_tally_start($event_nid),
-                        'custom', 'F j, Y')
-                    )
-                  ) . '</p>';
+        // let user know if tallying isn't open yet or is already closed.
+        $now = time();
+        $start_time = _ogevents_get_tally_start($event_nid);
+        if ($now < $start_time) {
+          $msg = t('Trip Tallying will be available on @tally-start.',
+                    array('@tally-start' => format_date($start_time, 'custom', 'F j, Y')));
+        } 
+        else {
+          $end_time = _ogevents_get_tally_end($event_nid); 
+          $msg = t('Sorry, the Trip Tallying period ended on @tally-end.',
+                    array('@tally-end' => format_date($end_time, 'custom', 'F j, Y')));
+        }
+        $output .= "<p>$msg</p>";
       }
 
 
