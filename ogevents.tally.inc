@@ -39,19 +39,45 @@ function ogevents_page_tally($event_nid, $gid) {
 /**
  * Page for confirmation after submitting monthly tally.
  */
-function ogevents_page_tally_thanks($event_nid, $gid) {
+function ogevents_page_tally_thanks($event_nid, $school_nid) {
+
+  //TODO - the variables should be set (as they are) and passed to a 
+  // theme function which will use the output html below.
+
+  $name = _ogevents_get_node_title($school_nid);
+  $results = _ogevents_get_results($school_nid, $event_nid);
+
+  $walk = $results['final_walk_trips'];
+  $bike = $results['final_bike_trips'];
+  $other = $results['final_other_trips'];
+  $staff = $results['staff'];
+  $parents = $results['parents'];
+
+  $participants = $results['participants'];
+  $studentbody = $results['studentbody'];
+  $percent = round($results['student_percentage'],1);
 
   $output .= '<p>';
-  $output = t('Thanks for submitting your Walk + Bike Challenge final results!');
-  $output .= '</p>';
+  $output = t('Thanks for submitting your Walk + Bike Challenge final results! ') . '<p/>';
   $output .= '<p>';
-  $output .= t('If you need to you can still <a href="@tally-page">go back</a> and change them. ',
-             array('@tally-page' => url("event/$event_nid/tally/$gid")));
-  $output .= t('Just make sure to submit your results again when finished.');
+  $output .= t('The following data has been recorded for %name:', array('%name' => $name)) . '<br/>';
+  $output .= t('<strong>Totals:</strong> @walk walk trips, @bike bike trips, @other other trips.', 
+               array('@walk' => $walk, '@bike' => $bike, '@other' => $other)) . '<br/>';
+  $output .= t('<strong>Participation:</strong> @participants of @studentbody students (@percent%), ' . 
+               'plus @staff staff and @parents parents.', 
+               array('@participants' => $participants, '@studentbody' => $studentbody, 
+                     '@percent' => $percent,
+                     '@staff' => $staff, '@parents' => $parents));
   $output .= '</p>';
 
   $output .= '<p>';
-  $output .= t('Go back to <a href="@dashboard-page">My Schools</a> or ' .
+  $output .= t('If you need to you can still <a href="@tally-page">go back</a> and make changes. ',
+             array('@tally-page' => url("event/$event_nid/tally/$school_nid")));
+  $output .= t('Just remember to resubmit your results when finished.');
+  $output .= '</p>';
+
+  $output .= '<p>';
+  $output .= t('You can return to <a href="@dashboard-page">My Schools</a> or ' .
              '<a href="@results-page">see Challenge results</a> for all schools.',
              array('@dashboard-page' => url('dashboard'), '@results-page' => url("event/$event_nid/results")));
   $output .= '</p>';
