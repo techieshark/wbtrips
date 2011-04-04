@@ -338,6 +338,26 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid, $reg_
   return $form;
 }
 
+/**
+ * Form validation function.
+ */
+function ogevents_participation_form_validate($form, &$form_state) {
+  // # participating students cannot be > # student body
+  if ($form_state['values']['participants'] > $form_state['values']['studentbody']) {
+    form_set_error('studentbody', 
+      t('You have more students participating than you have in the school. How is that possible?'));
+  }
+  
+  // value must be >= 0 (numbers)
+  $keys = array('parents', 'staff', 'participants', 'studentbody');
+  foreach ($keys as $key) {
+    $value = $form_state['values'][$key];
+    if (! is_numeric($value) || $value < 0) {
+      form_set_error($key, t('Expected a numeric value greater than or equal to zero.'));
+    }
+  }
+}
+
 
 /**
  * Submit month participation totals.
