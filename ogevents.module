@@ -255,7 +255,7 @@ function _ogevents_tally_page_access($event_nid, $school_nid, $output_errors = F
   // is tallying open?
   if (! _ogevents_is_tallying_open($event_nid)) {
     if ($output_errors) {
-      drupal_set_message(t('Challenge is not yet open for tallying.'), 'error');
+      drupal_set_message(t('Challenge is not currently open for tallying.'), 'error');
     }
     return false;
   }
@@ -568,6 +568,15 @@ function _ogevents_is_open_for($event, $window) {
 function _ogevents_get_tally_start($event) {
   $event_node = is_numeric($event) ? node_load($event) : $event;
   return $event_node->field_tallydates[0]['value'];
+}
+
+/**
+ * Return date of tally end
+ */
+function _ogevents_get_tally_end($event) {
+  $event_node = is_numeric($event) ? node_load($event) : $event;
+  _ogevents_debug($event_node);
+  return $event_node->field_tallydates[0]['value2'];
 }
 
 
