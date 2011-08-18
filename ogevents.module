@@ -14,7 +14,7 @@
 // query returns NIDs of schools (groups) registered for the
 // given events (notice the IN (%s) in the query)
 define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
-  'SELECT DISTINCT oga.group_nid AS school_nid
+  'SELECT DISTINCT oga.group_nid AS school_id
   FROM {og_ancestry} oga
   JOIN {content_type_registration} reg ON reg.nid = oga.nid
   JOIN {content_field_eventid} field_eventid ON field_eventid.vid = reg.vid
@@ -114,10 +114,10 @@ function ogevents_init() {
  *   /event/$event_nid/register/csv
  *   /event/$event_nid/results/csv
  *
- * - /event/$event_nid/tally/$school_nid
+ * - /event/$event_nid/tally/$school_id
  *   The page where you record trips for the given event and school.
  *
- * - /event/$event_nid/thanks/$school_nid
+ * - /event/$event_nid/thanks/$school_id
  *   A thanks/confirmation page when final results are submitted.
  */
 function ogevents_menu() {
@@ -240,29 +240,29 @@ function _ogevents_results_page_access($event_nid) {
  * @param output_errors if TRUE, we output problems with drupal_set_message
  * @return true if access check passes, false otherwise
  */
-function _ogevents_tally_page_access($event_nid, $school_nid, $output_errors = FALSE) {
+function _ogevents_tally_page_access($event_nid, $school_id, $output_errors = FALSE) {
 
   // if they don't have basic permission for tallying, return access denied
   if (! user_access('access ogevents content')) return false;
 
-  $school_node = node_load($school_nid); 
+  $school_node = node_load($school_id); 
 
   // Sanity checks:
   // - does school exist?
   if (!$school_node) {
     if ($output_errors) {
-      drupal_set_message(t('The school ID ("!school-id") does not exist.', array('!school-id' => $school_nid)), 'error');
+      drupal_set_message(t('The school ID ("!school-id") does not exist.', array('!school-id' => $school_id)), 'error');
     }
     return false;
   }
   //   - is school registered for this event?
-  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
   _ogevents_debug("get_reg returns:");
   _ogevents_debug($reg_nid);
   if (!$reg_nid) {
     if ($output_errors) {
       drupal_set_message(t('No registration was found for the given school ("!school-id") & event ("!event-id").',
-                         array('!school-id' => $school_nid, '!event-id' => $event_nid)), 'error');
+                         array('!school-id' => $school_id, '!event-id' => $event_nid)), 'error');
     }
     return false;
   }
@@ -384,12 +384,12 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
  * Get IDs of all registrations for the given school.
  * @return array of registration ids.
  */
-function _ogevents_get_school_registrations($school_nid) {
+function _ogevents_get_school_registrations($school_id) {
   $registrations = array();
   $query = 'SELECT n.nid FROM {node} n '
          . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
          . 'WHERE n.type = "registration" AND oga.group_nid = %d';
-  $res = db_query($query, $school_nid);
+  $res = db_query($query, $school_id);
   while ($reg_nid = db_result($res)) {
     $registrations[] = $reg_nid;
   }
@@ -401,13 +401,13 @@ function _ogevents_get_school_registrations($school_nid) {
  * Delete all tally nodes (content_type_triptally) for
  * the given school and event.
  */
-function _ogevents_delete_tallies($school_nid, $event_nid) {
+function _ogevents_delete_tallies($school_id, $event_nid) {
   // get node ids for tallies.
   $query = 'SELECT t.nid FROM {content_type_triptally} t '
          . 'JOIN {content_field_eventid} e ON t.nid = e.nid '
          . 'JOIN {og_ancestry} oga ON t.nid = oga.nid '
          . 'WHERE oga.group_nid = %d AND e.field_eventid_nid = %d';
-  $res = db_query($query, $school_nid, $event_nid);
+  $res = db_query($query, $school_id, $event_nid);
   while ($tally_nid = db_result($res)) {
     node_delete($tally_nid);
     drupal_set_message("Deleted tally: $tally_nid");
@@ -415,8 +415,8 @@ function _ogevents_delete_tallies($school_nid, $event_nid) {
 }
 
 
-function _ogevents_get_school_coordinator_uid($school_nid, $event_nid) {
-  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+function _ogevents_get_school_coordinator_uid($school_id, $event_nid) {
+  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
   $reg_node = node_load($reg_nid);
   return ($reg_node->nid ? $reg_node->uid : NULL);
 }
@@ -430,9 +430,9 @@ function _ogevents_get_school_coordinator_uid($school_nid, $event_nid) {
  * @param $as_link if TRUE, returns name as a link to contact page
                    (with redirect set to return to the current page).
  */
-function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
+function _ogevents_get_school_coordinator($school_id, $event_nid, $as_link) {
 
-  $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+  $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_nid);
   if (! $coordinator_uid) {
    return;
   }
@@ -483,12 +483,12 @@ function _ogevents_get_school_coordinator($school_nid, $event_nid, $as_link) {
 /**
  * Return an array of results for the given school and event
  */
-function _ogevents_get_results($school_nid, $event_nid) {
+function _ogevents_get_results($school_id, $event_nid) {
 
   $biketrips = $walktrips = $othertrips = 0;
 
   foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
-    $tally_nid = _ogevents_get_nid_triptally($event_nid, $school_nid, $week);
+    $tally_nid = _ogevents_get_nid_triptally($event_nid, $school_id, $week);
     if ($tally_nid) {
       $tally_node = node_load($tally_nid);
       // assert tally_node is valid result (s/be, since t_nid is valid).
@@ -498,7 +498,7 @@ function _ogevents_get_results($school_nid, $event_nid) {
     }
   }
 
-  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
   $reg_node = node_load($reg_nid);
   if ($reg_node->nid) {
     $staff = $reg_node->field_staff[0]['value'];
@@ -545,7 +545,7 @@ function _ogevents_get_registered_schools($event_nids = NULL) {
   $result = db_query(OGEVENTS_QUERY_REGISTERED_SCHOOLS, implode(', ', $events));
 
   $registered_schools = array();
-  while ($row = db_fetch_object($result)) $registered_schools[] = $row->school_nid;
+  while ($row = db_fetch_object($result)) $registered_schools[] = $row->school_id;
 
   return $registered_schools;
 }
@@ -764,9 +764,9 @@ function ogevents_form_school_prevent_duplicates_validate($form, &$form_state) {
               JOIN {location} l ON li.lid = l.lid
               WHERE n.title = '%s' AND l.city = '%s'";
 
-    $school_nid = $form_state['values']['nid']; // will be non-empty on updates
-    if (!empty($school_nid)) { // when seeking duplicates, ignore this node.
-      $query .= " AND n.nid <> $school_nid";
+    $school_id = $form_state['values']['nid']; // will be non-empty on updates
+    if (!empty($school_id)) { // when seeking duplicates, ignore this node.
+      $query .= " AND n.nid <> $school_id";
     }
 
     $count = db_result(db_query($query, $name, $city));

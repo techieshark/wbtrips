@@ -76,14 +76,14 @@ function ogevents_page_dashboard() {
       $star = ' <span class="warning">*</span>';
       $rows = array();
 
-      foreach ($schools as $school_nid) {
-        $school_name = _ogevents_get_node_title($school_nid);
+      foreach ($schools as $school_id) {
+        $school_name = _ogevents_get_node_title($school_id);
         $row = array();
 
         if ($tallying_open) {
 
           // get school challenge results for current event.
-          $results = _ogevents_get_results($school_nid, $event_nid);
+          $results = _ogevents_get_results($school_id, $event_nid);
           if (_ogevents_test_sync($results)) {
             $warning = TRUE;
             $end_warning = TRUE;
@@ -93,7 +93,7 @@ function ogevents_page_dashboard() {
           }
 
           // link school name -> tally page
-          $row[] = l($school_name, "event/$event_nid/tally/$school_nid",
+          $row[] = l($school_name, "event/$event_nid/tally/$school_id",
                      array('attributes' => array('title' => "Tally trips for $school_name")))
                    . ($warning ? $star : '');
 
@@ -121,7 +121,7 @@ function ogevents_page_dashboard() {
         }
 
         // add edit link
-        $row[] = l('edit', "node/$school_nid/edit",
+        $row[] = l('edit', "node/$school_id/edit",
                            array('query' => drupal_get_destination(),
                                  'attributes' => array('title' => 'Edit basic info like name and address.')));
 
@@ -372,12 +372,12 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
   $star = $csv ? ' *' : ' <span class="warning">*</span>';
 
   // foreach school, add results to table..
-  foreach (_ogevents_get_registered_schools($event_nid) as $school_nid) {
+  foreach (_ogevents_get_registered_schools($event_nid) as $school_id) {
     $row = array();
 
-    $school_node = node_load($school_nid);
+    $school_node = node_load($school_id);
 
-    $results = _ogevents_get_results($school_nid, $event_nid);
+    $results = _ogevents_get_results($school_id, $event_nid);
     $warning = FALSE;
     if(_ogevents_test_sync($results)) {
       $warning = TRUE;
@@ -411,10 +411,10 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
                        $school_node->locations[0]['postal_code']);
     }
 
-    array_push($row, _ogevents_get_school_coordinator($school_nid, $event_nid, $coordinator_as_link));
+    array_push($row, _ogevents_get_school_coordinator($school_id, $event_nid, $coordinator_as_link));
 
     if ($csv && user_access('access ogevents reports')) {
-      $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+      $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_nid);
       $coordinator = user_load($coordinator_uid);
       profile_load_profile($coordinator);
       array_push($row, $coordinator->mail, $coordinator->profile_phone);
@@ -439,7 +439,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     array_push($row, $results['staff'], $results['parents']);
 
     if ($csv) { // date of last tally activity
-      $timestamp = _ogevents_get_latest_tally_timestamp($school_nid, $event_nid);
+      $timestamp = _ogevents_get_latest_tally_timestamp($school_id, $event_nid);
       array_push($row, $timestamp ? format_date($timestamp, 'custom', 'Y-m-d H:i:s') : '');
     }
 
@@ -454,10 +454,10 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
  * for a given school and event.
  * Returns false if no tally data (trips, participation) has been recorded.
  */
-function _ogevents_get_latest_tally_timestamp($school_nid, $event_nid) {
+function _ogevents_get_latest_tally_timestamp($school_id, $event_nid) {
   $timestamp = 0;
 
-  $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
   if (!$reg_nid) {
     return FALSE; // no registration, so no tallies either
   }
@@ -482,7 +482,7 @@ function _ogevents_get_latest_tally_timestamp($school_nid, $event_nid) {
   JOIN {content_field_eventid} e ON t.vid = e.vid
   WHERE oga.group_nid = %d AND e.field_eventid_nid = %d
   ORDER BY n.changed DESC LIMIT 1";
-  $tally_time = db_result(db_query($query, $school_nid, $event_nid));
+  $tally_time = db_result(db_query($query, $school_id, $event_nid));
 
   if ($tally_time > $timestamp) {
     $timestamp = $tally_time;
@@ -541,11 +541,11 @@ function ogevents_page_register($event_nid) {
   $header = array('School', 'City', 'Coordinator');
   $rows = array();
 
-  $school_nids = _ogevents_get_registered_schools($event_nid);
-  foreach ($school_nids as $school_nid) {
-    $school = node_load($school_nid);
+  $school_ids = _ogevents_get_registered_schools($event_nid);
+  foreach ($school_ids as $school_id) {
+    $school = node_load($school_id);
     $rows[] = array($school->title, $school->locations[0]['city'],
-                    _ogevents_get_school_coordinator($school_nid, $event_nid, TRUE));
+                    _ogevents_get_school_coordinator($school_id, $event_nid, TRUE));
   }
 
   _ogevents_debug($rows); //DEBUG
@@ -679,19 +679,19 @@ function _ogevents_get_registered_schools_header() {
 function _ogevents_get_registered_schools_rows($event_nid) {
   $rows = array();
 
-  $school_nids = _ogevents_get_registered_schools($event_nid);
-  foreach ($school_nids as $school_nid) {
-    $school = node_load($school_nid);
-    $reg_nid = _ogevents_get_registration($event_nid, $school_nid);
+  $school_ids = _ogevents_get_registered_schools($event_nid);
+  foreach ($school_ids as $school_id) {
+    $school = node_load($school_id);
+    $reg_nid = _ogevents_get_registration($event_nid, $school_id);
     $registration = node_load($reg_nid);
-    $coordinator_uid = _ogevents_get_school_coordinator_uid($school_nid, $event_nid);
+    $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_nid);
     $coordinator = user_load($coordinator_uid);
     profile_load_profile($coordinator);
 
     $rows[] = array($school->title,
                     $school->locations[0]['street'], $school->locations[0]['city'],
                     $school->locations[0]['province'], $school->locations[0]['postal_code'],
-                    _ogevents_get_school_coordinator($school_nid, $event_nid, FALSE),
+                    _ogevents_get_school_coordinator($school_id, $event_nid, FALSE),
                     $coordinator->mail,
                     $coordinator->profile_phone,
                     '"' . format_date($registration->created, 'custom', 'Y-m-d H:i:s') . '"',

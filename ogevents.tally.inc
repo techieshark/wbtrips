@@ -39,13 +39,13 @@ function ogevents_page_tally($event_nid, $school_id) {
 /**
  * Page for confirmation after submitting monthly tally.
  */
-function ogevents_page_tally_thanks($event_nid, $school_nid) {
+function ogevents_page_tally_thanks($event_nid, $school_id) {
 
   //TODO - the variables should be set (as they are) and passed to a 
   // theme function which will use the output html below.
 
-  $name = _ogevents_get_node_title($school_nid);
-  $results = _ogevents_get_results($school_nid, $event_nid);
+  $name = _ogevents_get_node_title($school_id);
+  $results = _ogevents_get_results($school_id, $event_nid);
 
   $walk = $results['final_walk_trips'];
   $bike = $results['final_bike_trips'];
@@ -72,7 +72,7 @@ function ogevents_page_tally_thanks($event_nid, $school_nid) {
 
   $output .= '<p>';
   $output .= t('If you need to you can still <a href="@tally-page">go back</a> and make changes. ',
-             array('@tally-page' => url("event/$event_nid/tally/$school_nid")));
+             array('@tally-page' => url("event/$event_nid/tally/$school_id")));
   $output .= t('Just remember to resubmit your results when finished.');
   $output .= '</p>';
 
@@ -285,7 +285,7 @@ function _ogevents_update_triptally($event_nid, $school_id, $week, $bike, $walk,
 }
 
 
-function ogevents_participation_form($form_state, $event_nid, $school_nid, $reg_nid) {
+function ogevents_participation_form($form_state, $event_nid, $school_id, $reg_nid) {
   $form = array();
 
   $reg_node = node_load($reg_nid);
@@ -297,7 +297,7 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid, $reg_
   $staff = $reg_node->field_staff[0]['value'];
   $parents = $reg_node->field_parents[0]['value'];
 
-  $results = _ogevents_get_results($school_nid, $event_nid);
+  $results = _ogevents_get_results($school_id, $event_nid);
   $default_walk = $results['final_walk_trips'];
   $default_bike = $results['final_bike_trips'];
   $default_other = $results['final_other_trips'];
@@ -353,7 +353,7 @@ function ogevents_participation_form($form_state, $event_nid, $school_nid, $reg_
       );
 
   $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
-  $form['school'] = array('#type' => 'hidden', '#value' => $school_nid);
+  $form['school'] = array('#type' => 'hidden', '#value' => $school_id);
   $form['reg'] = array('#type' => 'hidden', '#value' => $reg_nid);
 
   $form['submit'] = array(
@@ -393,7 +393,7 @@ function ogevents_participation_form_submit($form, &$form_state) {
   _ogevents_debug($form_state); //DEBUG
 
   $event_nid = $form_state['values']['event'];
-  $school_nid = $form_state['values']['school'];
+  $school_id = $form_state['values']['school'];
   $reg_nid = $form_state['values']['reg']; // the registration for the previously given school+event
   $reg_node = node_load($reg_nid);
 
@@ -412,5 +412,5 @@ function ogevents_participation_form_submit($form, &$form_state) {
   _ogevents_debug("reg node after saving: ");
   _ogevents_debug($reg_node);
 
-  $form_state['redirect'] = "event/$event_nid/thanks/$school_nid";
+  $form_state['redirect'] = "event/$event_nid/thanks/$school_id";
 }
