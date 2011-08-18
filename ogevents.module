@@ -337,12 +337,12 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 
         $event_nid = $_GET['event'];
         $newNode->field_eventid[0]['nid'] = $event_nid;
-        $gid = $node->nid; //school nid
+        $school_id = $node->nid; //school nid
 
         if ($event_nid) {
           node_save($newNode);
           $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
-          db_query($sql, $newNode->nid, $gid);
+          db_query($sql, $newNode->nid, $school_id);
           drupal_set_message(_ogevents_get_post_registration_msg($event_nid));
         }
         else {
@@ -807,24 +807,24 @@ function _ogevents_get_post_registration_msg($event_nid) {
 /**
  * Find the node id of the triptally for the given school, event, week.
  * @param $event_nid The node id of the event we're interested in.
- * @param $gid The school (group) node ID we're interested in.
+ * @param $school_id The school (group) node ID we're interested in.
  * @param $week The week number (1-5) we want.
  * @return nid for desired triptally node.
  */
-function _ogevents_get_nid_triptally($event_nid, $gid, $week) {
+function _ogevents_get_nid_triptally($event_nid, $school_id, $week) {
   $query = "SELECT t.nid FROM {content_type_triptally} t
   JOIN {og_ancestry} oga ON t.nid = oga.nid
   JOIN {content_field_eventid} e ON t.vid = e.vid
   WHERE oga.group_nid = %d AND e.field_eventid_nid = %d AND t.field_week_value = %d";
   // assert - there is only one tally per event/group/week
-  return db_result(db_query($query, $gid, $event_nid, $week));
+  return db_result(db_query($query, $school_id, $event_nid, $week));
 }
 
 
 /**
- * Returns node id of registration node for given event and school (gid).
+ * Returns node id of registration node for given event and school (school_id).
  */
-function _ogevents_get_registration($event_nid, $gid) {
+function _ogevents_get_registration($event_nid, $school_id) {
   $query = "SELECT r.nid
             FROM {og_ancestry} oga
             JOIN {content_type_registration} r ON oga.nid = r.nid
@@ -833,5 +833,5 @@ function _ogevents_get_registration($event_nid, $gid) {
             WHERE n.type = 'registration'
             AND e.field_eventid_nid = %d AND oga.group_nid = %d";
   // assert: there can only be one registration per school+event
-  return db_result(db_query($query, $event_nid, $gid));
+  return db_result(db_query($query, $event_nid, $school_id));
 }
