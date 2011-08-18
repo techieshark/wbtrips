@@ -631,16 +631,16 @@ function ogevents_register_form_submit($form, &$form_state) {
   $newNode = _ogevents_get_blank_regnode();
   $newNode->field_eventid[0]['nid'] = $eid = $form_state['values']['event']; //event nid to signup for
 
-  $gid = $form_state['values']['og_register']; // nid of selected school being registered
+  $school_id = $form_state['values']['og_register']; // nid of selected school being registered
 
   node_save($newNode);
   $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
-  db_query($sql, $newNode->nid, $gid);
+  db_query($sql, $newNode->nid, $school_id);
 
   // clear form storage, to allow form to submit
   $form_state['storage'] = array();
 
-  og_save_subscription($gid, $GLOBALS["user"]->uid, array('is_active' => 1));
+  og_save_subscription($school_id, $GLOBALS["user"]->uid, array('is_active' => 1));
 
   drupal_set_message(_ogevents_get_post_registration_msg($eid));
 

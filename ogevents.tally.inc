@@ -9,14 +9,14 @@
 /**
  * Page (Menu item callback) to record trips for the month.
  */
-function ogevents_page_tally($event_nid, $gid) {
+function ogevents_page_tally($event_nid, $school_id) {
 
   $output = '';
-  $reg_nid = _ogevents_get_registration($event_nid, $gid);
-  $tally_box = '<h3>' . t('1. Weekly Log (Optional)') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $gid, $reg_nid);
-  $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . drupal_get_form('ogevents_participation_form', $event_nid, $gid, $reg_nid);
+  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
+  $tally_box = '<h3>' . t('1. Weekly Log (Optional)') . '</h3>' . drupal_get_form('ogevents_tally_form', $event_nid, $school_id, $reg_nid);
+  $month_box = '<h3>' . t('2. Final Results (Required)') . '</h3>' . drupal_get_form('ogevents_participation_form', $event_nid, $school_id, $reg_nid);
 
-  $school_node = node_load($gid);
+  $school_node = node_load($school_id);
   $output .= '<h2>' . check_plain($school_node->title) . '</h2>';
   $output .= t('Tally trips for %school-name. Enter the total number of trips for your entire school. '
          . 'You can update the trip log weekly or just enter your totals at the end of the month.',
@@ -89,7 +89,7 @@ function ogevents_page_tally_thanks($event_nid, $school_nid) {
 /**
  * A form for recording each week's results for a month.
  */
-function ogevents_tally_form($form_state, $event_nid, $gid, $reg_nid) {
+function ogevents_tally_form($form_state, $event_nid, $school_id, $reg_nid) {
 
   $form['trips'] = array(
       '#theme' => 'ogevents_tally_table', '#attributes' => array('summary' => 'Use this table to input weekly trips'),
@@ -99,7 +99,7 @@ function ogevents_tally_form($form_state, $event_nid, $gid, $reg_nid) {
 
     // set form defaults
     $default_bike = $default_walk = $default_other = 0;
-    $tally_nid = _ogevents_get_nid_triptally($event_nid, $gid, $week);
+    $tally_nid = _ogevents_get_nid_triptally($event_nid, $school_id, $week);
     if ($tally_nid) {
       $tally_node = node_load($tally_nid);
       // assert tally_node is valid result (s/be, since t_nid is valid).
@@ -115,7 +115,7 @@ function ogevents_tally_form($form_state, $event_nid, $gid, $reg_nid) {
   }
 
   $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
-  $form['school'] = array('#type' => 'hidden', '#value' => $gid);
+  $form['school'] = array('#type' => 'hidden', '#value' => $school_id);
   $form['reg'] = array('#type' => 'hidden', '#value' => $reg_nid);
 
   $form['update-totals'] = array(
@@ -197,7 +197,7 @@ function ogevents_tally_form_submit($form, &$form_state) {
   _ogevents_debug($form_state);
 
   $event_nid = $form_state['values']['event'];
-  $gid = $form_state['values']['school'];
+  $school_id = $form_state['values']['school'];
   $reg_nid = $form_state['values']['reg'];
 
   // Update triptally node with results for each week
@@ -205,7 +205,7 @@ function ogevents_tally_form_submit($form, &$form_state) {
     $walk = $form_state['values']["walktrips$week"];
     $bike =  $form_state['values']["biketrips$week"];
     $other =  $form_state['values']["othertrips$week"];
-    _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $other);
+    _ogevents_update_triptally($event_nid, $school_id, $week, $bike, $walk, $other);
 
     $walk_total += $walk;
     $bike_total += $bike;
@@ -225,15 +225,15 @@ function ogevents_tally_form_submit($form, &$form_state) {
 
 /**
  * Create or update a triptally node.
- * @param gid The school nid.
+ * @param school_id The school nid.
  * @param week The week we're updating
  * @param bike Number of trips by bike.
  * @param walk Number of trips on foot.
  * @parm other Number of other trips.
  */
-function _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $other) {
+function _ogevents_update_triptally($event_nid, $school_id, $week, $bike, $walk, $other) {
   // look for the node
-  $tally_nid = _ogevents_get_nid_triptally($event_nid, $gid, $week);
+  $tally_nid = _ogevents_get_nid_triptally($event_nid, $school_id, $week);
 
   if ($tally_nid) { // use existing node if exists
     $tally_node = node_load($tally_nid);
@@ -271,14 +271,14 @@ function _ogevents_update_triptally($event_nid, $gid, $week, $bike, $walk, $othe
   node_save($tally_node);
   if (! $tally_node->nid) {
     drupal_set_message("Error saving bike/walk/other values ($bike/$walk/$other) " .
-                       "for event/school/week ($event_nid,$gid,$week).", 'error');
+                       "for event/school/week ($event_nid,$school_id,$week).", 'error');
   }
 
   // First time we save the node we need to put in the Org. Group ancestry table too.
   // Note - if we ever get rid of the OG bits we could just store groupid as a node field. (TODO?)
   if ($is_new_node) {
     $sql = "INSERT INTO {og_ancestry} (nid, group_nid) VALUES (%d, %d)";
-    db_query($sql, $tally_node->nid, $gid);
+    db_query($sql, $tally_node->nid, $school_id);
   }
 
   return;
