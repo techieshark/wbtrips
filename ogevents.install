@@ -1,0 +1,60 @@
+<?php
+// $Id$
+
+/**
+ * @file Installation file for the ogevents module.
+ */
+
+function ogevents_install() {
+  drupal_install_schema('ogevents');
+}
+
+function ogevents_uninstall() {
+  drupal_uninstall_schema('ogevents');
+}
+
+function ogevents_schema() {
+  $schema['ogevents_results_cache'] = array(
+      'description' => 'Cache for the calculated challenge results.',
+      'fields' => array(
+        'cid' => array(
+          'description' => 'ID for this cache item.',
+          'type' => 'serial',
+          'unsigned' => TRUE,
+          'not null' => TRUE),
+        'school_id' => array(
+          'description' => 'The school these results are for.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        'event_id' => array(
+          'description' => 'The event these results are for.',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        'totalbike' => array(
+          'description' => 'The total number of biking trips at the given school during the given event',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        'totalwalk' => array(
+          'description' => 'The total number of walking trips at the given school during the given event',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        'othertrips' => array(
+          'description' => 'The total number of other trips at the given school during the given event',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        ),
+        'primary key' => array('cid'),
+    );
+    return $schema;
+}
+
