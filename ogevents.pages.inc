@@ -22,9 +22,9 @@ function ogevents_page_dashboard() {
     $output .= t('There are currently no events open for registration or tallying.  Please return later.');
   }
 
-  foreach ($events as $event_nid) {
+  foreach ($events as $event_id) {
     // print event name as header
-    $event_node = node_load($event_nid);
+    $event_node = node_load($event_id);
     if (count($events) > 1) {
       $output .= "<h2>My Schools for " . $event_node->title . "</h2>";
     } // otherwise no need for title.
@@ -32,12 +32,12 @@ function ogevents_page_dashboard() {
     $registration_open = _ogevents_is_registration_open($event_node);
     $tallying_open = _ogevents_is_tallying_open($event_node);
 
-    $schools = _ogevents_get_my_registered_schools($event_nid);
+    $schools = _ogevents_get_my_registered_schools($event_id);
     if (empty($schools)) { // no registered school; allow registration if possible
       if ($registration_open) {
         // print 'Register for this' link.
         $output .= '<p>' . t('You have no registered schools yet.  You can <a href="@register-page">register a school</a>.',
-                    array('@register-page' => url("event/$event_nid/register"))) . '</p>';
+                    array('@register-page' => url("event/$event_id/register"))) . '</p>';
       }
       else {
         $output .= '<p>' . t('Registration is closed.') . '</p>';
@@ -57,13 +57,13 @@ function ogevents_page_dashboard() {
       else {
         // let user know if tallying isn't open yet or is already closed.
         $now = time();
-        $start_time = _ogevents_get_tally_start($event_nid);
+        $start_time = _ogevents_get_tally_start($event_id);
         if ($now < $start_time) {
           $msg = t('Trip Tallying will be available on @tally-start.',
                     array('@tally-start' => format_date($start_time, 'custom', 'F j, Y')));
         } 
         else {
-          $end_time = _ogevents_get_tally_end($event_nid); 
+          $end_time = _ogevents_get_tally_end($event_id); 
           $msg = t('Sorry, the Trip Tallying period ended on @tally-end.',
                     array('@tally-end' => format_date($end_time, 'custom', 'F j, Y')));
         }
@@ -83,7 +83,7 @@ function ogevents_page_dashboard() {
         if ($tallying_open) {
 
           // get school challenge results for current event.
-          $results = _ogevents_get_results($school_id, $event_nid);
+          $results = _ogevents_get_results($school_id, $event_id);
           if (_ogevents_test_sync($results)) {
             $warning = TRUE;
             $end_warning = TRUE;
@@ -93,7 +93,7 @@ function ogevents_page_dashboard() {
           }
 
           // link school name -> tally page
-          $row[] = l($school_name, "event/$event_nid/tally/$school_id",
+          $row[] = l($school_name, "event/$event_id/tally/$school_id",
                      array('attributes' => array('title' => "Tally trips for $school_name")))
                    . ($warning ? $star : '');
 
@@ -136,7 +136,7 @@ function ogevents_page_dashboard() {
       $output .= theme('table', $header, $rows);
 
       if ($registration_open) {
-        $output .= '<p><b>' . l('Register another school', "event/$event_nid/register") . '</b></p>';
+        $output .= '<p><b>' . l('Register another school', "event/$event_id/register") . '</b></p>';
       }
     }
     $output .= "<br/>";
@@ -162,10 +162,10 @@ function _ogevents_test_sync($results) {
  * Returns array of nids of schools registered for the given event,
  * where the user is a member of those school OGs.
  */
-function _ogevents_get_my_registered_schools($event_nid) {
+function _ogevents_get_my_registered_schools($event_id) {
   global $user;
 
-  $all_registered_schools = _ogevents_get_registered_schools($event_nid);
+  $all_registered_schools = _ogevents_get_registered_schools($event_id);
   if (empty($user->og_groups) || empty($all_registered_schools)) {
     return array();
   } else {
@@ -177,7 +177,7 @@ function _ogevents_get_my_registered_schools($event_nid) {
 
     $my_registered_schools = array();
     foreach ($registered_groups as $group_id) {
-      $reg_nid = _ogevents_get_registration($event_nid, $group_id);
+      $reg_nid = _ogevents_get_registration($event_id, $group_id);
       $registration = node_load($reg_nid);
       if ($registration->uid == $user->uid) {
         $my_registered_schools[] = $group_id;
@@ -189,7 +189,7 @@ function _ogevents_get_my_registered_schools($event_nid) {
 
   // filter my og schools by event:
   // look for registrations owned by a given user uid.
-  //filter_registered_by_user_for_event($my_schools, $event_nid, $user->uid);
+  //filter_registered_by_user_for_event($my_schools, $event_id, $user->uid);
   // This SQL does what this function does.  Consider using it instead.
   //SELECT oga.group_nid FROM og_ancestry oga JOIN content_type_registration r ON oga.nid = r.nid JOIN node n ON r.vid = n.vid JOIN content_field_eventid e ON e.vid = r.vid WHERE n.uid = %user AND e.field_eventid_nid = %event
 }
@@ -275,14 +275,14 @@ function _ogevents_util_smallbig($a, $b) {
 /**
  * Output a page with results for all schools in the specified event in a table.
  */
-function ogevents_page_results($event_nid) {
-  $output = '<p>' . 'You may ' . l('download these results', "event/$event_nid/results/csv") . '.' . '</p>';
+function ogevents_page_results($event_id) {
+  $output = '<p>' . 'You may ' . l('download these results', "event/$event_id/results/csv") . '.' . '</p>';
 
-  _ogevents_debug("Event: $event_nid"); //DEBUG
+  _ogevents_debug("Event: $event_id"); //DEBUG
   $out_of_sync = FALSE;
 
   $header = _ogevents_get_challenge_results_header(FALSE);
-  $rows = _ogevents_get_challenge_results_data($event_nid, TRUE, FALSE, $out_of_sync);
+  $rows = _ogevents_get_challenge_results_data($event_id, TRUE, FALSE, $out_of_sync);
 
   $output .= theme('table', $header, $rows);
 
@@ -293,14 +293,14 @@ function ogevents_page_results($event_nid) {
   return $output;
 }
 
-function ogevents_page_results_csv($event_nid) {
+function ogevents_page_results_csv($event_id) {
   // set headers
   header('Content-Type: text/csv');
-  header('Content-Disposition: attachment; filename="results-' . $event_nid . '.csv"');
+  header('Content-Disposition: attachment; filename="results-' . $event_id . '.csv"');
 
   // print CSV
   $csv = implode(",", _ogevents_get_challenge_results_header(TRUE)) . "\n";
-  $rows = _ogevents_get_challenge_results_data($event_nid, FALSE, TRUE);
+  $rows = _ogevents_get_challenge_results_data($event_id, FALSE, TRUE);
   foreach ($rows as $row) {
     $line = implode(",", $row);
     $csv .= $line . "\n";
@@ -367,17 +367,17 @@ function _ogevents_get_challenge_results_header($csv = FALSE) {
  * @param csv - if data is intended for CSV output, in which case extra fields are included (if user has permission).
  * @param out_of_sync: will be set to TRUE if final results do not appear to be up to date (@see _ogevents_test_sync). 
  */
-function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, $csv = FALSE, &$out_of_sync = FALSE) {
+function _ogevents_get_challenge_results_data($event_id, $coordinator_as_link, $csv = FALSE, &$out_of_sync = FALSE) {
   $rows = array();
   $star = $csv ? ' *' : ' <span class="warning">*</span>';
 
   // foreach school, add results to table..
-  foreach (_ogevents_get_registered_schools($event_nid) as $school_id) {
+  foreach (_ogevents_get_registered_schools($event_id) as $school_id) {
     $row = array();
 
     $school_node = node_load($school_id);
 
-    $results = _ogevents_get_results($school_id, $event_nid);
+    $results = _ogevents_get_results($school_id, $event_id);
     $warning = FALSE;
     if(_ogevents_test_sync($results)) {
       $warning = TRUE;
@@ -411,10 +411,10 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
                        $school_node->locations[0]['postal_code']);
     }
 
-    array_push($row, _ogevents_get_school_coordinator($school_id, $event_nid, $coordinator_as_link));
+    array_push($row, _ogevents_get_school_coordinator($school_id, $event_id, $coordinator_as_link));
 
     if ($csv && user_access('access ogevents reports')) {
-      $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_nid);
+      $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_id);
       $coordinator = user_load($coordinator_uid);
       profile_load_profile($coordinator);
       array_push($row, $coordinator->mail, $coordinator->profile_phone);
@@ -439,7 +439,7 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
     array_push($row, $results['staff'], $results['parents']);
 
     if ($csv) { // date of last tally activity
-      $timestamp = _ogevents_get_latest_tally_timestamp($school_id, $event_nid);
+      $timestamp = _ogevents_get_latest_tally_timestamp($school_id, $event_id);
       array_push($row, $timestamp ? format_date($timestamp, 'custom', 'Y-m-d H:i:s') : '');
     }
 
@@ -454,10 +454,10 @@ function _ogevents_get_challenge_results_data($event_nid, $coordinator_as_link, 
  * for a given school and event.
  * Returns false if no tally data (trips, participation) has been recorded.
  */
-function _ogevents_get_latest_tally_timestamp($school_id, $event_nid) {
+function _ogevents_get_latest_tally_timestamp($school_id, $event_id) {
   $timestamp = 0;
 
-  $reg_nid = _ogevents_get_registration($event_nid, $school_id);
+  $reg_nid = _ogevents_get_registration($event_id, $school_id);
   if (!$reg_nid) {
     return FALSE; // no registration, so no tallies either
   }
@@ -482,7 +482,7 @@ function _ogevents_get_latest_tally_timestamp($school_id, $event_nid) {
   JOIN {content_field_eventid} e ON t.vid = e.vid
   WHERE oga.group_nid = %d AND e.field_eventid_nid = %d
   ORDER BY n.changed DESC LIMIT 1";
-  $tally_time = db_result(db_query($query, $school_id, $event_nid));
+  $tally_time = db_result(db_query($query, $school_id, $event_id));
 
   if ($tally_time > $timestamp) {
     $timestamp = $tally_time;
@@ -494,9 +494,9 @@ function _ogevents_get_latest_tally_timestamp($school_id, $event_nid) {
 
 /**
  * Page to register a school.
- * @param $event_nid the event to register for
+ * @param $event_id the event to register for
  */
-function ogevents_page_register($event_nid) {
+function ogevents_page_register($event_id) {
   global $user;
 
   /* Print header.
@@ -523,11 +523,11 @@ function ogevents_page_register($event_nid) {
     $output .= 'Select your school and click the Register button to register and identify yourself as coordinator.';
     $output .= '</li><li>';
     $output .= 'If you don’t see your school in either the drop-down menu or the list below it, you’ll need to '
-            .  l('add and register your school', 'node/add/school', array('query' => "event=$event_nid")) . '.';
+            .  l('add and register your school', 'node/add/school', array('query' => "event=$event_id")) . '.';
     $output .= '</li></ol></p>';
 
     $output .= '<h2>Unregistered schools</h2>';
-    $output .= drupal_get_form('ogevents_register_form', $event_nid);
+    $output .= drupal_get_form('ogevents_register_form', $event_id);
   }
 
   // from registration-form theme file...
@@ -535,17 +535,17 @@ function ogevents_page_register($event_nid) {
 
   // for BTA Admins, insert a 'Download Registered Schools List' link.
   if (user_access('access ogevents reports')) {
-    $output .= l('Download Registered Schools List', "event/$event_nid/register/csv");
+    $output .= l('Download Registered Schools List', "event/$event_id/register/csv");
   }
 
   $header = array('School', 'City', 'Coordinator');
   $rows = array();
 
-  $school_ids = _ogevents_get_registered_schools($event_nid);
+  $school_ids = _ogevents_get_registered_schools($event_id);
   foreach ($school_ids as $school_id) {
     $school = node_load($school_id);
     $rows[] = array($school->title, $school->locations[0]['city'],
-                    _ogevents_get_school_coordinator($school_id, $event_nid, TRUE));
+                    _ogevents_get_school_coordinator($school_id, $event_id, TRUE));
   }
 
   _ogevents_debug($rows); //DEBUG
@@ -560,9 +560,9 @@ function ogevents_page_register($event_nid) {
  * Build a form to register a school for an event.
  * Form contains a single dropdown of unregistered schools.
  */
-function ogevents_register_form($form_state, $event_nid) {
-  // get nids of schools registered for $event_nid
-  $regd_array = _ogevents_get_registered_schools($event_nid);
+function ogevents_register_form($form_state, $event_id) {
+  // get nids of schools registered for $event_id
+  $regd_array = _ogevents_get_registered_schools($event_id);
 
   $query = "SELECT node.nid AS nid
     FROM {node}
@@ -594,7 +594,7 @@ function ogevents_register_form($form_state, $event_nid) {
       '#options' => $options,
       '#required' => TRUE,
       );
-  $form['event'] = array('#type' => 'hidden', '#value' => $event_nid);
+  $form['event'] = array('#type' => 'hidden', '#value' => $event_id);
 
   $form['submit'] = array(
       '#type' => 'submit',
@@ -602,7 +602,7 @@ function ogevents_register_form($form_state, $event_nid) {
       );
 
   $form['register_link'] = array(
-      '#value' => ' &nbsp; or &nbsp; ' . l('My school doesn\'t appear in the menu or the list below.', 'node/add/school', array('query' => "event=$event_nid")),
+      '#value' => ' &nbsp; or &nbsp; ' . l('My school doesn\'t appear in the menu or the list below.', 'node/add/school', array('query' => "event=$event_id")),
       );
 
   return $form;
@@ -651,14 +651,14 @@ function ogevents_register_form_submit($form, &$form_state) {
 /**
  * Cause a CSV file to be sent to the browser, containing registered schools.
  */
-function ogevents_page_registered_csv($event_nid) {
+function ogevents_page_registered_csv($event_id) {
   // set headers
   header('Content-Type: text/csv');
-  header('Content-Disposition: attachment; filename="registrations-' . $event_nid . '.csv"');
+  header('Content-Disposition: attachment; filename="registrations-' . $event_id . '.csv"');
 
   // print CSV
   $csv = implode(",", _ogevents_get_registered_schools_header()) . "\n";
-  $rows = _ogevents_get_registered_schools_rows($event_nid);
+  $rows = _ogevents_get_registered_schools_rows($event_id);
   foreach ($rows as $row) {
     $line = implode(",", $row);
     $csv .= $line . "\n";
@@ -676,22 +676,22 @@ function _ogevents_get_registered_schools_header() {
   //todo ARG. we need row for 'fully entered info'.
 }
 
-function _ogevents_get_registered_schools_rows($event_nid) {
+function _ogevents_get_registered_schools_rows($event_id) {
   $rows = array();
 
-  $school_ids = _ogevents_get_registered_schools($event_nid);
+  $school_ids = _ogevents_get_registered_schools($event_id);
   foreach ($school_ids as $school_id) {
     $school = node_load($school_id);
-    $reg_nid = _ogevents_get_registration($event_nid, $school_id);
+    $reg_nid = _ogevents_get_registration($event_id, $school_id);
     $registration = node_load($reg_nid);
-    $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_nid);
+    $coordinator_uid = _ogevents_get_school_coordinator_uid($school_id, $event_id);
     $coordinator = user_load($coordinator_uid);
     profile_load_profile($coordinator);
 
     $rows[] = array($school->title,
                     $school->locations[0]['street'], $school->locations[0]['city'],
                     $school->locations[0]['province'], $school->locations[0]['postal_code'],
-                    _ogevents_get_school_coordinator($school_id, $event_nid, FALSE),
+                    _ogevents_get_school_coordinator($school_id, $event_id, FALSE),
                     $coordinator->mail,
                     $coordinator->profile_phone,
                     '"' . format_date($registration->created, 'custom', 'Y-m-d H:i:s') . '"',
