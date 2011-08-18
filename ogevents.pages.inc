@@ -629,7 +629,7 @@ function ogevents_register_form_validate($form, &$form_state) {
  */
 function ogevents_register_form_submit($form, &$form_state) {
   $newNode = _ogevents_get_blank_regnode();
-  $newNode->field_eventid[0]['nid'] = $eid = $form_state['values']['event']; //event nid to signup for
+  $newNode->field_eventid[0]['nid'] = $event_id = $form_state['values']['event']; //event nid to signup for
 
   $school_id = $form_state['values']['og_register']; // nid of selected school being registered
 
@@ -642,7 +642,7 @@ function ogevents_register_form_submit($form, &$form_state) {
 
   og_save_subscription($school_id, $GLOBALS["user"]->uid, array('is_active' => 1));
 
-  drupal_set_message(_ogevents_get_post_registration_msg($eid));
+  drupal_set_message(_ogevents_get_post_registration_msg($event_id));
 
   $form_state['redirect'] = 'dashboard';
 }
