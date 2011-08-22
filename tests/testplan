@@ -1,0 +1,13 @@
+Cache testing.
+
+* Updating the module.  should add the cache db table.
+ * After updating, view dashboard. results cache s/be generated if a school's results will be shown.
+* Disable / uninstall / enable module. [should code check if table exists before deleting it?]
+  cache table created. Populated sparsely as tallies are saved.  Fully populated upon visiting results page.
+* Register school, save tally.  cache results s/be updated.
+* update tally for registered school.
+* unregister school.  tallies & cached results s/be removed.
+* delete a school.  tallies & cached results s/be removed.
+* Delete an event.  tallies and cache s/be cleared.
+
+Other testing:
