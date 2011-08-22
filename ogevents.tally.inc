@@ -212,6 +212,17 @@ function ogevents_tally_form_submit($form, &$form_state) {
     $other_total += $other;
   }
 
+  $ret = _ogevents_cache_results($school_id, $event_id,
+    array(
+      "walk_total" => $walk_total,
+      "bike_total" => $bike_total,
+      "other_total" => $other_total,
+      "sum_total" => $walk_total + $bike_total + $other_total,
+      )
+  );
+
+
+
   // Additionally, if user clicked button to copy totals to final results, do that
   if ($form_state['clicked_button']['#value'] == $form_state['values']['update-totals']) {
     $reg_node = node_load($reg_nid);
@@ -219,6 +230,10 @@ function ogevents_tally_form_submit($form, &$form_state) {
     $reg_node->field_biketrips[0]['value'] = $bike_total;
     $reg_node->field_othertrips[0]['value'] = $other_total;
     node_save($reg_node);
+  }
+
+  if (!$ret) {
+    drupal_set_message(t('Failed to cache results.'), 'error');
   }
 }
 
@@ -397,14 +412,20 @@ function ogevents_participation_form_submit($form, &$form_state) {
   $reg_nid = $form_state['values']['reg']; // the registration for the previously given school+event
   $reg_node = node_load($reg_nid);
 
+  $studentbody = $form_state['values']['studentbody'];
+  $participants = $form_state['values']['participants'];
+
   $reg_node->field_biketrips[0]['value'] = $form_state['values']['bike'];
   $reg_node->field_walktrips[0]['value'] = $form_state['values']['walk'];
   $reg_node->field_othertrips[0]['value'] = $form_state['values']['other'];
-  $reg_node->field_participants[0]['value'] = $form_state['values']['participants'];
+  $reg_node->field_participants[0]['value'] = $participants;
   $reg_node->field_parents[0]['value'] = $form_state['values']['parents'];
   $reg_node->field_staff[0]['value'] = $form_state['values']['staff'];
-  $reg_node->field_studentbody[0]['value'] = $form_state['values']['studentbody'];
+  $reg_node->field_studentbody[0]['value'] = $studentbody;
   $reg_node->field_results_submitted[0]['value'] = 1;
+
+  _ogevents_cache_results($school_id, $event_id,
+    array("participation" => $studentbody ? ($participants / $studentbody * 100) : 0));
 
   node_save($reg_node);
 

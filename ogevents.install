@@ -11,10 +11,15 @@ function ogevents_install() {
 
 function ogevents_uninstall() {
   drupal_uninstall_schema('ogevents');
+  variable_del('ogevents_results_cached');
 }
 
-function ogevents_schema() {
-  $schema['ogevents_results_cache'] = array(
+function ogevents_update_6001() {
+  return drupal_install_schema('ogevents');
+}
+
+function ogevents_cache_schema() {
+  return array(
       'description' => 'Cache for the calculated challenge results.',
       'fields' => array(
         'cid' => array(
@@ -34,14 +39,14 @@ function ogevents_schema() {
           'not null' => TRUE,
           'unsigned' => TRUE,
           'default' => 0),
-        'bike_total' => array(
-          'description' => 'The total number of biking trips at the given school during the given event',
+        'walk_total' => array(
+          'description' => 'The total number of walking trips at the given school during the given event',
           'type' => 'int',
           'not null' => TRUE,
           'unsigned' => TRUE,
           'default' => 0),
-        'walk_total' => array(
-          'description' => 'The total number of walking trips at the given school during the given event',
+        'bike_total' => array(
+          'description' => 'The total number of biking trips at the given school during the given event',
           'type' => 'int',
           'not null' => TRUE,
           'unsigned' => TRUE,
@@ -52,9 +57,25 @@ function ogevents_schema() {
           'not null' => TRUE,
           'unsigned' => TRUE,
           'default' => 0),
+        'sum_total' => array(
+          'description' => 'The total number of all trips at the given school during the given event',
+          'type' => 'int',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
+        'participation' => array(
+          'description' => 'The percent of students (range is 0-100) participating in the event.',
+          'type' => 'float',
+          'not null' => TRUE,
+          'unsigned' => TRUE,
+          'default' => 0),
         ),
         'primary key' => array('cid'),
     );
-    return $schema;
+}
+
+function ogevents_schema() {
+  $schema['ogevents_results_cache'] = ogevents_cache_schema();
+  return $schema;
 }
 
