@@ -272,12 +272,100 @@ function _ogevents_util_smallbig($a, $b) {
 }
 
 
+/* returns human friendly string for participation info. */
+function _ogevents_humanify_participation($participants, $studentbody) {
+  return sprintf("%d of %d (%s%%)",
+    $participants, $studentbody,
+    round($participants / $studentbody * 100,1));
+}
+
+
+
+  // This looks complicated but really it isn't that bad...
+  // plus, it seems to go faster than a bunch of function calls.
+define('OGEVENTS_QUERY_RESULTS',
+       'SELECT s.nid as school_id, s.title as name, l.city, rn.uid as coord,
+                 c.walk_total as walk, c.bike_total as bike,
+                   c.other_total as other, c.sum_total as sum, c.participation,
+                 rc.field_staff_value as staff, rc.field_parents_value as parents,
+                 rc.field_participants_value as participants,
+                 rc.field_studentbody_value as students
+
+          FROM {node} s
+
+          JOIN {location_instance} li ON s.vid = li.vid
+          JOIN {location} l ON li.lid = l.lid
+
+          JOIN {og_ancestry} oga ON s.nid = oga.group_nid
+          JOIN {content_type_registration} rc ON oga.nid = rc.nid
+          JOIN {node} rn ON (rc.vid = rn.vid AND rn.type = \'registration\')
+          JOIN {content_field_eventid} re ON (rc.vid = re.vid AND re.field_eventid_nid = %d)
+
+          JOIN {ogevents_results_cache} c ON (s.nid = c.school_id AND c.event_id = %d)
+
+          WHERE s.nid in (%s)');
+
 /**
  * Output a page with results for all schools in the specified event in a table.
  */
 function ogevents_page_results($event_id) {
   $output = '<p>' . 'You may ' . l('download these results', "event/$event_id/results/csv") . '.' . '</p>';
 
+  $star = ' <span class="warning">*</span>';
+
+  $header = array(
+      array('data' => t('School'), 'field' => 'name'),
+      array('data' => t('City'), 'field' => 'city'),
+      array('data' => t('Coordinator')),
+      array('data' => t('Walk'), 'field' => 'walk'),
+      array('data' => t('Bike'), 'field' => 'bike'),
+      array('data' => t('Other'), 'field' => 'other'),
+      array('data' => t('Total'), 'field' => 'sum'),
+      array('data' => t('Students'), 'field' => 'participation', 'sort' => 'desc'),
+      array('data' => t('Staff'), 'field' => 'staff'),
+      array('data' => t('Parents'), 'field' => 'parents'),
+      );
+
+  $schools = _ogevents_get_registered_schools($event_id);
+  //$result = db_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $event_id, $event_id, implode(',', $schools));
+  $limit = 30;
+  $result = pager_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $limit, 0, NULL,
+                        $event_id, $event_id, implode(',', $schools));
+
+  $rows = array();
+  $out_of_sync = FALSE;
+  while ($row = db_fetch_object($result)) {
+
+    $school_id = $row->school_id;
+    $results = _ogevents_get_results($school_id, $event_id);
+    $warning = FALSE;
+    if(_ogevents_test_sync($results)) {
+      $warning = TRUE;
+      $out_of_sync = TRUE;
+    }
+
+    $cells = array();
+    array_push($cells,
+      $row->name . ($warning ? $star : ''),
+      $row->city,
+      _ogevents_coordinator_name_from_uid($row->coord),
+      $row->walk, $row->bike, $row->other, $row->sum,
+      _ogevents_humanify_participation($row->participants, $row->students),
+      $row->staff, $row->parents);
+
+    $rows[] = $cells;
+  }
+
+  $output .= theme('table', $header, $rows);
+  $output .= theme('pager', NULL, $limit, 0);
+
+  if ($out_of_sync) {
+    $output .= '<br/>';
+    $output .= '<div class="warning"><span class="warning">*</span>These may be preliminary results; this school may need to resubmit their final results.</div>';
+  }
+  return $output;
+
+/*
   _ogevents_debug("Event: $event_id"); //DEBUG
   $out_of_sync = FALSE;
 
@@ -291,6 +379,7 @@ function ogevents_page_results($event_id) {
     $output .= '<div class="warning"><span class="warning">*</span>These may be preliminary results; this school may need to resubmit their final results.</div>';
   }
   return $output;
+ */
 }
 
 function ogevents_page_results_csv($event_id) {
@@ -429,10 +518,8 @@ function _ogevents_get_challenge_results_data($event_id, $coordinator_as_link, $
                        $results['student_percentage']);
     }
     else { //human friendly format for web only
-      $students = sprintf("%d of %d (%s%%)",
-                        $results['participants'],
-                        $results['studentbody'],
-                        round($results['student_percentage'],1));
+      $students = _ogevents_humanify_participation(
+                  $results['participants'], $results['studentbody']);
       array_push($row, $students);
     }
 

@@ -437,6 +437,17 @@ function _ogevents_get_school_coordinator($school_id, $event_id, $as_link) {
    return;
   }
 
+  return _ogevents_coordinator_name_from_uid($coordinator_uid, $as_link);
+}
+
+/**
+ * Same as _ogevents_get_school_coordinator() but requires the UID.
+ * Useful if you have the UID already.
+ * @param $as_link if TRUE, returns name as a link to contact page
+                   (with redirect set to return to the current page),
+                   and defaults to TRUE.
+ */
+function _ogevents_coordinator_name_from_uid($coordinator_uid, $as_link = TRUE) {
   // get username or profile name
   $coordinator = user_load($coordinator_uid);
   $name = $coordinator->name;
