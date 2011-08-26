@@ -212,7 +212,7 @@ function ogevents_tally_form_submit($form, &$form_state) {
     $other_total += $other;
   }
 
-  $ret = _ogevents_cache_results($school_id, $event_id,
+  $ret = _ogevents_save_results($school_id, $event_id,
     array(
       "walk_total" => $walk_total,
       "bike_total" => $bike_total,
@@ -424,7 +424,7 @@ function ogevents_participation_form_submit($form, &$form_state) {
   $reg_node->field_studentbody[0]['value'] = $studentbody;
   $reg_node->field_results_submitted[0]['value'] = 1;
 
-  _ogevents_cache_results($school_id, $event_id,
+  _ogevents_save_results($school_id, $event_id,
     array("participation" => $studentbody ? ($participants / $studentbody * 100) : 0));
 
   node_save($reg_node);

@@ -11,19 +11,28 @@ function ogevents_install() {
 
 function ogevents_uninstall() {
   drupal_uninstall_schema('ogevents');
-  variable_del('ogevents_results_cached');
 }
 
+/*
 function ogevents_update_6001() {
   return drupal_install_schema('ogevents');
 }
+*/
 
-function ogevents_cache_schema() {
+function ogevents_update_6003() {
+  $ret = drupal_install_schema('ogevents');
+  if (! _ogevents_build_results()) {
+    $ret['#abort'] = array('success' => FALSE, 'query' => 'Failed building results table.');
+  }
+  return $ret;
+}
+
+function ogevents_results_schema() {
   return array(
-      'description' => 'Cache for the calculated challenge results.',
+      'description' => 'Storage for the calculated challenge results.',
       'fields' => array(
-        'cid' => array(
-          'description' => 'ID for this cache item.',
+        'rid' => array(
+          'description' => 'ID for this result.',
           'type' => 'serial',
           'unsigned' => TRUE,
           'not null' => TRUE),
@@ -70,12 +79,12 @@ function ogevents_cache_schema() {
           'unsigned' => TRUE,
           'default' => 0),
         ),
-        'primary key' => array('cid'),
+        'primary key' => array('rid'),
     );
 }
 
 function ogevents_schema() {
-  $schema['ogevents_results_cache'] = ogevents_cache_schema();
+  $schema['ogevents_results'] = ogevents_results_schema();
   return $schema;
 }
 

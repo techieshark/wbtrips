@@ -301,7 +301,7 @@ define('OGEVENTS_QUERY_RESULTS',
           JOIN {node} rn ON (rc.vid = rn.vid AND rn.type = \'registration\')
           JOIN {content_field_eventid} re ON (rc.vid = re.vid AND re.field_eventid_nid = %d)
 
-          JOIN {ogevents_results_cache} c ON (s.nid = c.school_id AND c.event_id = %d)
+          JOIN {ogevents_results} c ON (s.nid = c.school_id AND c.event_id = %d)
 
           WHERE s.nid in (%s)');
 
@@ -329,7 +329,6 @@ function ogevents_page_results($event_id) {
   $schools = _ogevents_get_registered_schools($event_id);
   //$result = db_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $event_id, $event_id, implode(',', $schools));
   $limit = 30;
-  _ogevents_build_cache($event_id);
   $result = pager_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $limit, 0, NULL,
                         $event_id, $event_id, implode(',', $schools));
 
