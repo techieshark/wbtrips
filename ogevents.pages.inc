@@ -276,7 +276,7 @@ function _ogevents_util_smallbig($a, $b) {
 function _ogevents_humanify_participation($participants, $studentbody) {
   return sprintf("%d of %d (%s%%)",
     $participants, $studentbody,
-    round($participants / $studentbody * 100,1));
+    $studentbody ? round($participants / $studentbody * 100,1) : 0);
 }
 
 
@@ -329,6 +329,7 @@ function ogevents_page_results($event_id) {
   $schools = _ogevents_get_registered_schools($event_id);
   //$result = db_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $event_id, $event_id, implode(',', $schools));
   $limit = 30;
+  _ogevents_build_cache($event_id);
   $result = pager_query(OGEVENTS_QUERY_RESULTS . tablesort_sql($header), $limit, 0, NULL,
                         $event_id, $event_id, implode(',', $schools));
 
