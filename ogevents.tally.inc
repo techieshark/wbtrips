@@ -95,7 +95,8 @@ function ogevents_tally_form($form_state, $event_id, $school_id, $reg_nid) {
       '#theme' => 'ogevents_tally_table', '#attributes' => array('summary' => 'Use this table to input weekly trips'),
   );
 
-  foreach (range(1,OGEVENTS_NUM_WEEKS) as $week) {
+  $num_weeks = _ogevents_get_event_weeks($event_id);
+  foreach (range(1,$num_weeks) as $week) {
 
     // set form defaults
     $default_bike = $default_walk = $default_other = 0;
@@ -201,7 +202,8 @@ function ogevents_tally_form_submit($form, &$form_state) {
   $reg_nid = $form_state['values']['reg'];
 
   // Update triptally node with results for each week
-  foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+  $num_weeks = _ogevents_get_event_weeks($event_id);
+  foreach (range(1, $num_weeks) as $week) {
     $walk = $form_state['values']["walktrips$week"];
     $bike =  $form_state['values']["biketrips$week"];
     $other =  $form_state['values']["othertrips$week"];
