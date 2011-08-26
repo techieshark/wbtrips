@@ -729,7 +729,7 @@ function ogevents_register_form_submit($form, &$form_state) {
 
   og_save_subscription($school_id, $GLOBALS["user"]->uid, array('is_active' => 1));
 
-  _ogevents_cache_results($school_id, $event_id, array());
+  _ogevents_save_results($school_id, $event_id, array());
 
   drupal_set_message(_ogevents_get_post_registration_msg($event_id));
 
