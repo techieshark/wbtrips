@@ -514,16 +514,11 @@ function _ogevents_get_results($school_id, $event_id) {
 
   $biketrips = $walktrips = $othertrips = 0;
 
-  // If necessary, build cache
-  if (variable_get('ogevents_results_cached') != 1) {
-    if (!_ogevents_build_cache($event_id)) {
-      drupal_set_message(t('Failed to build results cache table.'), 'error');
-    }
-  }
 
-  // pull from cache.
+
+  // pull from results.
   $sql = "SELECT bike_total, walk_total, other_total, sum_total
-    FROM {ogevents_results_cache}
+    FROM {ogevents_results}
   WHERE school_id = %d AND event_id = %d";
   $row = db_fetch_object(db_query($sql, $school_id, $event_id));
   $biketrips = $row->bike_total;
@@ -549,79 +544,88 @@ function _ogevents_get_results($school_id, $event_id) {
 /**
  * Remove all cached results.
  */
-function _ogevents_clear_cache() {
-  $sql = "DELETE FROM {ogevents_results_cache}";
+function _ogevents_clear_results() {
+  $sql = "DELETE FROM {ogevents_results}";
   db_query($sql);
-  variable_del('ogevents_results_cached');
 }
 
 
 /**  Build results cache.
- * This will touch each registration and tally node associated
- * with the specified event.
+ * This will touch each registration and tally node associated with any event.
  * If caching any result fails, caching is aborted and FALSE is returned;
  *  returns TRUE on success.
  */
-function _ogevents_build_cache($event_id) {
-  foreach (_ogevents_get_registered_schools($event_id) as $school_id) {
-    $biketrips = $walktrips = $othertrips = $percent = 0;
+function _ogevents_build_results() {
 
-    $reg_nid = _ogevents_get_registration($event_id, $school_id);
-    $reg_node = node_load($reg_nid, NULL, TRUE);
-    if ($reg_node->nid) {
-      $participants = $reg_node->field_participants[0]['value'];
-      $studentbody = $reg_node->field_studentbody[0]['value'];
-      $percent = $studentbody ? ($participants / $studentbody * 100) : 0;
-    }
-    foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
-      $tally_nid = _ogevents_get_nid_triptally($event_id, $school_id, $week);
-      if ($tally_nid) {
-        $tally_node = node_load($tally_nid, NULL, TRUE);
-        // assert tally_node is valid result (s/be, since tally_nid is valid).
-        $biketrips += $tally_node->field_biketrips[0]['value'];
-        $walktrips += $tally_node->field_walktrips[0]['value'];
-        $othertrips += $tally_node->field_othertrips[0]['value'];
+  // foreach event
+    // foreach registered school
+      // get tallies, sum their values, store results.
+
+  $events = _ogevents_get_all_events();
+  foreach ($events as $event_id) {
+    foreach (_ogevents_get_registered_schools($event_id) as $school_id) {
+      $biketrips = $walktrips = $othertrips = $percent = 0;
+
+      $reg_nid = _ogevents_get_registration($event_id, $school_id);
+      $reg_node = node_load($reg_nid, NULL, TRUE);
+      if ($reg_node->nid) {
+        $participants = $reg_node->field_participants[0]['value'];
+        $studentbody = $reg_node->field_studentbody[0]['value'];
+        $percent = $studentbody ? ($participants / $studentbody * 100) : 0;
+      }
+      foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+        $tally_nid = _ogevents_get_nid_triptally($event_id, $school_id, $week);
+        if ($tally_nid) {
+          $tally_node = node_load($tally_nid, NULL, TRUE);
+          // assert tally_node is valid result (s/be, since tally_nid is valid).
+          $biketrips += $tally_node->field_biketrips[0]['value'];
+          $walktrips += $tally_node->field_walktrips[0]['value'];
+          $othertrips += $tally_node->field_othertrips[0]['value'];
+        }
+      }
+
+      $ret = _ogevents_save_results($school_id, $event_id,
+          array("bike_total" => $biketrips,
+            "walk_total" => $walktrips,
+            "other_total" => $othertrips,
+            "sum_total" => $biketrips + $walktrips + $othertrips,
+            "participation" => $percent,
+            )
+          );
+      // If caching any results fails, we abort.
+      if (!$ret) {
+        drupal_set_message(t('Failed to build results table.'), 'error');
+        return $ret;
       }
     }
-
-    $ret = _ogevents_cache_results($school_id, $event_id,
-        array("bike_total" => $biketrips,
-          "walk_total" => $walktrips,
-          "other_total" => $othertrips,
-          "sum_total" => $biketrips + $walktrips + $othertrips,
-          "participation" => $percent,
-          )
-        );
-    // If caching any results fails, we abort.
-    if (!$ret) return $ret;
   }
-  variable_set('ogevents_results_cached', 1);
+
   return TRUE;
 }
 
 
 /**
- * Store the given results in the results cache.
- * @param results An array with keys and values appropriate to match the results cache table schema.
+ * Store the given results in the results table.
+ * @param results An array with keys and values appropriate to match the results table schema.
  * @return the return value of drupal_write_record.
  */
-function _ogevents_cache_results($school_id, $event_id, $results) {
-  $sql = "SELECT cid FROM {ogevents_results_cache} WHERE school_id = %d AND event_id = %d";
-  $cid = db_result(db_query($sql, $school_id, $event_id));
+function _ogevents_save_results($school_id, $event_id, $results) {
+  $sql = "SELECT rid FROM {ogevents_results} WHERE school_id = %d AND event_id = %d";
+  $rid = db_result(db_query($sql, $school_id, $event_id));
 
   $results["school_id"] = $school_id;
   $results["event_id"] = $event_id;
 
-  if ($cid) { // update existing
-    $results['cid'] = $cid;
-    $ret = drupal_write_record('ogevents_results_cache', $results, array('cid'));
+  if ($rid) { // update existing
+    $results['rid'] = $rid;
+    $ret = drupal_write_record('ogevents_results', $results, array('rid'));
   }
   else { // new record
-    $ret = drupal_write_record('ogevents_results_cache', $results);
+    $ret = drupal_write_record('ogevents_results', $results);
   }
 
   if (!$ret) {
-    _ogevents_debug('Failed to cache for cid: ' . $cid . ', school: ' . $school_id .
+    _ogevents_debug('Failed to store result for rid: ' . $rid . ', school: ' . $school_id .
                     ', event: ' . $event_id . ', results: ' . print_r($results, TRUE));
   }
 
@@ -753,6 +757,17 @@ function _ogevents_get_events() {
   return $nodes;
 }
 
+/**
+ * Returns array of nids of all events (published or not).
+ */
+function _ogevents_get_all_events() {
+  $result = db_query("SELECT n.nid FROM {node} n WHERE n.type = 'event'");
+  $nodes = array();
+  while ($row = db_fetch_object($result)) {
+    $nodes[] = $row->nid;
+  }
+  return $nodes;
+}
 
 /**
  * Get an array of all published Events for which registration is open.

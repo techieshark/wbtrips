@@ -6,4 +6,4 @@ dependencies[] = content
 dependencies[] = og
 dependencies[] = location
 package = "Walk And Bike"
-version = 0.1
+version = 0.3
