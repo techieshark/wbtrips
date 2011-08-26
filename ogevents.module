@@ -22,8 +22,6 @@ define('OGEVENTS_QUERY_REGISTERED_SCHOOLS',
   WHERE field_eventid.field_eventid_nid IN (%s)
   ORDER BY sn.title ASC');
 
-/** The number of weeks in a challenge event. */
-define('OGEVENTS_NUM_WEEKS', 5);
 
 /** Constant used internally to indicate that final results have been submitted. */
 define('OGEVENTS_RESULTS_SUBMITTED', 1); // 1 means true, 0 means false.
@@ -563,6 +561,10 @@ function _ogevents_build_results() {
 
   $events = _ogevents_get_all_events();
   foreach ($events as $event_id) {
+    $num_weeks = _ogevents_get_event_weeks($event_id);
+    // TODO - test upgrade path. previously didn't store #weeks, so may default to zero(?),
+    // in which case we'd want to use the old value (5) as default.
+
     foreach (_ogevents_get_registered_schools($event_id) as $school_id) {
       $biketrips = $walktrips = $othertrips = $percent = 0;
 
@@ -573,7 +575,7 @@ function _ogevents_build_results() {
         $studentbody = $reg_node->field_studentbody[0]['value'];
         $percent = $studentbody ? ($participants / $studentbody * 100) : 0;
       }
-      foreach (range(1, OGEVENTS_NUM_WEEKS) as $week) {
+      foreach (range(1, $num_weeks) as $week) {
         $tally_nid = _ogevents_get_nid_triptally($event_id, $school_id, $week);
         if ($tally_nid) {
           $tally_node = node_load($tally_nid, NULL, TRUE);
@@ -714,6 +716,15 @@ function _ogevents_get_tally_end($event) {
   _ogevents_debug($event_node);
   return $event_node->field_tallydates[0]['value2'];
 }
+
+/**
+ * Get the # of weeks in an event
+ */
+function _ogevents_get_event_weeks($event) {
+  $event_node = is_numeric($event) ? node_load($event) : $event;
+  return $event_node->field_nweeks[0]['value'];
+}
+
 
 
 /** Get events which are 'current' and published.
