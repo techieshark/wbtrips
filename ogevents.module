@@ -355,20 +355,17 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
     break;
     case 'delete':
       if ($node->type == 'school') {
-        $registrations = _ogevents_get_school_registrations($node->nid);
-        // for all events the school registered for,
-        //   delete all tallies associated with the school
-        //   delete the registration for the event
-        foreach ($registrations as $reg_nid) {
-          $r_node = node_load($reg_nid);
-          _ogevents_delete_tallies($node->nid, $r_node->field_eventid[0]['nid']);
-          node_delete($reg_nid);
-          drupal_set_message("Deleted registration: $reg_nid");
-        }
+        $registrations = _ogevents_get_registrations(NULL, $node->nid);
+        _ogevents_delete_registrations($registrations);
+
       }
       else if ($node->type == 'event') {
+        $registrations = _ogevents_get_registrations($node->nid, NULL);
+        _ogevents_delete_registrations($registrations);
+
         menu_rebuild();
       }
+
     break;
     case 'update':
       if ($node->type == 'event') {
@@ -378,16 +375,72 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 }
 
 
+function _ogevents_delete_registrations($registrations) {
+  // Delete all registrations associated with this school,
+  //   which subsequently will delete all associated tallies,
+  foreach ($registrations as $reg_nid) {
+
+    $reg_node = node_load($reg_nid);
+    $event_id = $reg_node->field_eventid[0]['nid'];
+    $school_id = _ogevents_get_school_from_reg($reg_nid);
+    if (!$school_id) {
+      drupal_set_message('Error getting school for reg node ' . $reg_nid, 'error');
+      _ogevents_debug($node);
+    }
+    _ogevents_debug('Going to delete tallies for reg/event/school: '
+        . $reg_nid . '/' . $event_id . '/' . $school_id);
+    _ogevents_delete_tallies($school_id, $event_id);
+
+    // Note that when we node_delete the registratin, the OG module deletes its data first,
+    //  so when our turn at nodeapi comes, we can't figure out which school a registration
+    //  is associated with.  That is why we needed to delete tallies first.
+    node_delete($reg_nid);
+    drupal_set_message("Deleted registration: $reg_nid");
+
+  }
+}
+
+
 /**
- * Get IDs of all registrations for the given school.
- * @return array of registration ids.
+ * Return the school ID registered for the given event, or FALSE on failure.
  */
-function _ogevents_get_school_registrations($school_id) {
+function _ogevents_get_school_from_reg($reg_nid) {
+  // A given registration ID will only show up in og_ancestry table once and
+  // with only one associated school.
+  $sql = 'SELECT group_nid FROM {og_ancestry} WHERE nid = %d';
+  return db_result(db_query($sql, $reg_nid));
+}
+
+
+/**
+ * Returns IDs of registrations for the given event and/or school.
+ * @return array of registration IDs.
+ */
+function _ogevents_get_registrations($event_id = NULL, $school_id = NULL) {
   $registrations = array();
-  $query = 'SELECT n.nid FROM {node} n '
-         . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
-         . 'WHERE n.type = "registration" AND oga.group_nid = %d';
-  $res = db_query($query, $school_id);
+  $res = NULL;
+
+  if (!$event_id && !$school_id) {
+    $sql = 'SELECT nid FROM {node} WHERE type = "registration"';
+    $res = db_query($sql);
+  }
+  else if ($event_id && !$school_id) {
+    // find registrations associated with the given event.
+    $sql = 'SELECT n.nid FROM {node} n '
+         . 'JOIN {content_field_eventid} e ON n.nid = e.nid '
+         . 'WHERE n.type = "registration" AND e.field_eventid_nid = %d';
+    $res = db_query($sql, $event_id);
+  }
+  else if (!$event_id && $school_id) {
+    $sql = 'SELECT n.nid FROM {node} n '
+      . 'JOIN {og_ancestry} oga ON oga.nid = n.nid '
+      . 'WHERE n.type = "registration" AND oga.group_nid = %d';
+    $res = db_query($sql, $school_id);
+  }
+  else { // both specified
+    return array(_ogevents_get_registration($event_id, $school_id));
+  }
+
   while ($reg_nid = db_result($res)) {
     $registrations[] = $reg_nid;
   }
@@ -410,6 +463,12 @@ function _ogevents_delete_tallies($school_id, $event_id) {
     node_delete($tally_nid);
     drupal_set_message("Deleted tally: $tally_nid");
   }
+
+  // delete cached results
+  $sql = 'DELETE FROM {ogevents_results} WHERE school_id = %d AND event_id = %d';
+  db_query($sql, $school_id, $event_id);
+  // XXX/TODO - note that currently, deleting individual tally nodes isn't supported,
+  //      and doing so through Drupal will not cause the results cache to be updated.
 }
 
 
