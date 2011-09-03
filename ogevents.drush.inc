@@ -16,8 +16,10 @@ function ogevents_drush_help($command) {
   switch ($command) {
     case 'drush:generate-wbc-event':
       return dt('Create a Walk & Bike event, open for a year from today');
-    case 'drush:ogevents-nodeprint':
+    case 'drush:ogevents-node-print':
       return dt('Debug - print a node');
+    case 'drush:ogevents-node-delete':
+      return dt('Debug - delete a node');
   }
 }
 
@@ -40,7 +42,7 @@ function ogevents_drush_command() {
         ),
       'aliases' => array('genw'),
       );
-  $items['ogevents-nodeprint'] = array(
+  $items['ogevents-node-print'] = array(
       'description' => dt('Prints a given node.'),
       'arguments'   => array(
        // idea: if no nid given, print last added node. TODO
@@ -50,6 +52,16 @@ function ogevents_drush_command() {
         'drush nidp 42' => 'Print node 42',
         ),
       'aliases' => array('nidp'),
+      );
+  $items['ogevents-node-delete'] = array(
+      'description' => dt('Deletes a given node.'),
+      'arguments'   => array(
+        'nid'    => dt('Node ID (required)'),
+        ), 
+      'examples' => array(
+        'drush nidd 42' => 'Delete node 42',
+        ),
+      'aliases' => array('nidd'),
       );
   return $items;
 }
@@ -70,7 +82,7 @@ function ogevents_drush_command() {
 function drush_ogevents_generate_wbc_event($weeks = OGEVENTS_DEFAULT_WEEKS, $title = NULL) {
   //check if the argument was passed in and just print it out
   if (isset($weeks)) {
-    drush_print('Creating event with an ' . $weeks . ' week tally form.');
+    drush_print('Creating event with ' . $weeks . ' week tally form.');
   }
 
   if ($weeks < 1) {
@@ -91,7 +103,7 @@ function drush_ogevents_generate_wbc_event($weeks = OGEVENTS_DEFAULT_WEEKS, $tit
 }
 
 /**
- * Callback function for drush ogevents_nodeprint
+ * Callback function for drush ogevents_node_print
  * Callback is called by using drush_hook_command() where
  * hook is the name of the module (ogevents) and command is the name of
  * the Drush command with all "-" characters converted to "_" characters 
@@ -99,7 +111,7 @@ function drush_ogevents_generate_wbc_event($weeks = OGEVENTS_DEFAULT_WEEKS, $tit
  * @param nid 
  *              The nid of the node to print 
  */
-function drush_ogevents_nodeprint($nid = NULL) {
+function drush_ogevents_node_print($nid = NULL) {
   //check if the argument was passed in and just print it out
   if (!isset($nid)) {
     drush_set_error('Nid argument required');
@@ -115,7 +127,34 @@ function drush_ogevents_nodeprint($nid = NULL) {
   }
 
   //log to the command line with an OK status
-  drush_log('Running ogevents-nodeprint', 'ok');
+  drush_log('Running ogevents-node-print', 'ok');
+}
+
+
+/**
+ * Callback function for drush ogevents_nodedel
+ * Callback is called by using drush_hook_command() where
+ * hook is the name of the module (ogevents) and command is the name of
+ * the Drush command with all "-" characters converted to "_" characters 
+ * 
+ * @param nid 
+ *              The nid of the node to delete 
+ */
+function drush_ogevents_node_delete($nid = NULL) {
+  //check if the argument was passed in and just print it out
+  if (!isset($nid)) {
+    drush_set_error('Nid argument required');
+  }
+
+  $node = node_load($nid);
+  if (! $node->nid) {
+    drush_set_error('Failed to load node ' . $nid);
+    return;
+  } 
+  node_delete($node->nid);
+
+  //log to the command line with an OK status
+  drush_log('Running ogevents-node-delete', 'ok');
 }
 
 /**
