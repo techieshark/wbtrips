@@ -671,8 +671,13 @@ function ogevents_register_form($form_state, $event_id) {
 
   // build array like (nid -> "<school name> - <city>")
   $first_option = array(-1 => "Select a School...");
-  $normal_options = array_combine($nids, $titles);
-  $options = $first_option + $normal_options;
+  if (!empty($nids)) {
+    $normal_options = array_combine($nids, $titles);
+    $options = $first_option + $normal_options;
+  }
+  else {
+    $options = $first_option;
+  }
 
   $form['og_register'] = array(
       '#type' => 'select',
