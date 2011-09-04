@@ -363,7 +363,9 @@ function ogevents_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
         $registrations = _ogevents_get_registrations($node->nid, NULL);
         _ogevents_delete_registrations($registrations);
 
-        menu_rebuild();
+        $nid = $node->nid;
+        menu_link_delete(NULL, "event/$nid/register");
+        menu_link_delete(NULL, "event/$nid/results");
       }
 
     break;
